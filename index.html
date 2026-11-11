@@ -491,7 +491,7 @@ aside { display: grid; gap: 16px; min-width: 0; }
           <div class="field-row">
             <span class="lbl">▶ たおす てきの かず</span>
             <div class="seg" role="radiogroup" aria-label="倒す敵の数">
-              <input type="radio" name="count" id="c1" value="1"><label for="c1">1体<small>約7問</small></label>
+              <input type="radio" name="count" id="c1" value="1"><label for="c1">1体<small>約4問</small></label>
               <input type="radio" name="count" id="c3" value="3" checked><label for="c3">3体<small>約12問</small></label>
               <input type="radio" name="count" id="c5" value="5"><label for="c5">5体<small>約18問</small></label>
               <input type="radio" name="count" id="c10" value="10"><label for="c10">10体<small>約40問</small></label>
@@ -1362,12 +1362,20 @@ function drawSprite(canvas, m, silhouette) {
     }
   });
 }
-// order of enemies for one adventure: random picks from the first nine (weakest first), then the final boss
+// order of enemies for one adventure: random picks from the first eight (weakest first), then the last enemy
+// chance that アボガドラゴン replaces キング・モル as the last enemy (10 enemies: always; 1 enemy: never)
+const DRAGON_CHANCE = { 1: 0, 3: 1 / 20, 5: 1 / 10 };
 function makeLineup(total) {
+  const dragon = MONSTERS.length - 1, king = dragon - 1;
   if (total >= MONSTERS.length) return MONSTERS.map((_, i) => i);
-  const pool = MONSTERS.slice(0, -1).map((_, i) => i);
-  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-  return [...pool.slice(0, total - 1).sort((a, b) => a - b), MONSTERS.length - 1];
+  const shuffled = n => {
+    const a = Array.from({ length: n }, (_, i) => i);
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+  if (total === 1) return [shuffled(dragon)[0]];  // any monster except アボガドラゴン
+  const last = Math.random() < (DRAGON_CHANCE[total] || 0) ? dragon : king;
+  return [...shuffled(king).slice(0, total - 1).sort((a, b) => a - b), last];
 }
 function monsterStats(idx, total) {
   const m = MONSTERS[idx];
@@ -1567,7 +1575,9 @@ function next(first) {
   else if (set.enemy.hp <= 0) {
     spawn(set.enemyIdx + 1);
     lines = [`${set.enemy.name}が あらわれた！`, `${set.enemy.name}は ${set.enemy.intro}`];
-    if (set.enemy.boss && set.target > 1) lines.unshift('…ただならぬ けはいが する！');
+    if (set.enemy.boss && set.target < MONSTERS.length) lines.unshift('…!? ようすが おかしい！', 'ただならぬ けはいが する！');
+    else if (set.enemy.boss) lines.unshift('…ただならぬ けはいが する！');
+    else if (set.enemyIdx === set.target - 1 && set.target > 1) lines.unshift('さいごの てきが あらわれる…！');
   }
   else lines = [pick([`${set.enemy.name}は こちらの ようすを うかがっている。`, `${set.enemy.name}が みがまえている！`, `${set.enemy.name}は ぶきみに わらっている…`])];
   let t, tries = 0;
