@@ -60,22 +60,36 @@ sub, sup { font-size: .7em; line-height: 0; }
 
 .main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 820px) { .main { grid-template-columns: minmax(0, 1fr); } }
-/* PC battle: monster, messages, question and the mol map on the left; the calculator stays on the right */
+/* PC battle: monster | hero status side by side, messages below them, then the question and the mol map;
+   the calculator stays in the right column */
 @media (min-width: 821px) {
   .wrap[data-screen="battle"] .main {
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-    grid-template-areas: "field calc" "status calc" "msg calc" "quiz calc" "aside calc";
-    grid-template-rows: auto auto auto auto 1fr;
-    row-gap: 14px;
+    grid-template-columns: minmax(0, .66fr) minmax(0, .59fr) minmax(0, 1fr);
+    grid-template-areas: "field status calc" "msg msg calc" "quiz quiz calc" "aside aside calc";
+    grid-template-rows: auto auto auto 1fr;
+    gap: 14px;
   }
   .wrap[data-screen="battle"] .main > .col, .wrap[data-screen="battle"] #battle { display: contents; }
   .wrap[data-screen="battle"] #field { grid-area: field; }
-  .wrap[data-screen="battle"] #status { grid-area: status; }
-  .wrap[data-screen="battle"] #msg { grid-area: msg; }
+  .wrap[data-screen="battle"] #status { grid-area: status; align-self: stretch; }
+  .wrap[data-screen="battle"] #msg { grid-area: msg; min-height: calc(3 * 1.8em + 28px); }
   .wrap[data-screen="battle"] #quiz { grid-area: quiz; }
   .wrap[data-screen="battle"] aside { grid-area: aside; align-self: start; }
   .wrap[data-screen="battle"] #calcbox { grid-area: calc; align-self: start; position: sticky; top: 12px; }
   .wrap[data-screen="battle"] .calc { max-width: none; }
+  /* narrower monster window */
+  .wrap[data-screen="battle"] .field { align-content: start; }
+  .wrap[data-screen="battle"] .ehead { flex-wrap: wrap; justify-content: center; row-gap: 0; width: 100%; padding: 2px 8px; }
+  .wrap[data-screen="battle"] .ehead .nm { width: 100%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wrap[data-screen="battle"] .ehead .bar { flex: 1; width: auto; min-width: 0; }
+  .wrap[data-screen="battle"] .stage { height: 150px; }
+  .wrap[data-screen="battle"] .stage canvas { width: 120px; height: 120px; }
+  /* status as a stacked list in its narrower column */
+  .wrap[data-screen="battle"] .status { display: grid; align-content: center; gap: 6px; }
+  .wrap[data-screen="battle"] .status .hp, .wrap[data-screen="battle"] .status .exp { display: grid; grid-template-columns: 2.4em minmax(0, 1fr); column-gap: 6px; align-items: center; }
+  .wrap[data-screen="battle"] .status .hp .bar, .wrap[data-screen="battle"] .status .exp .bar { width: 100%; }
+  .wrap[data-screen="battle"] .status .hp > span, .wrap[data-screen="battle"] .status .exp > span { grid-column: 2; font-size: .8rem; line-height: 1.2; }
+  .wrap[data-screen="battle"] .status .meta { margin-left: 0; display: grid; gap: 0; }
 }
 .col { display: grid; gap: 14px; min-width: 0; }
 
