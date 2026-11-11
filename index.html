@@ -1,0 +1,1744 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>モル計算クエスト</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=IBM+Plex+Mono:wght@400;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: retro RPG battle — battle field + status + message window on top, the question card below, mol map aside.
+   Deliberately single-theme (night dungeon), so no light/dark switching. */
+:root {
+  --bg: #0d1030;
+  --sky: #222c6e;
+  --sky2: #34307a;
+  --floor: #2a2147;
+  --floor2: #171230;
+  --win: #05060f;
+  --win-line: #f4f4f4;
+  --paper: #10143a;
+  --fg: #f4f4f4;
+  --muted: #a6acd0;
+  --line: #343a6e;
+  --key: #1b2150;
+  --key-op: #262d66;
+  --accent: #ffd34d;
+  --accent-soft: #3a3214;
+  --accent-fg: #1a1300;
+  --good: #5ee08f;
+  --good-soft: #123a26;
+  --bad: #ff6b6b;
+  --bad-soft: #3d1520;
+  --hp-mid: #ffd34d;
+  --f-pixel: "DotGothic16", "Hiragino Sans", "Yu Gothic", monospace;
+  --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg);
+  background-image: radial-gradient(ellipse at 50% -10%, #2a2f7a 0%, transparent 60%);
+  color: var(--fg);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.wrap {
+  max-width: 1040px; margin: 0 auto;
+  padding-block: 20px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 16px;
+}
+h1 { font-family: var(--f-pixel); font-weight: 400; font-size: clamp(1.5rem, 4vw, 2rem); line-height: 1.2; margin: 0; letter-spacing: .08em; color: var(--accent); text-shadow: 3px 3px 0 #5a2a00; }
+sub, sup { font-size: .7em; line-height: 0; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 820px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.col { display: grid; gap: 14px; min-width: 0; }
+
+/* classic RPG window: white frame with a dark ring */
+.win {
+  background: var(--win); color: var(--fg);
+  border: 3px solid var(--win-line); border-radius: 10px;
+  box-shadow: 0 0 0 3px var(--win), 0 6px 0 3px #00000055;
+  padding: 14px 16px; min-width: 0;
+}
+.pixel { font-family: var(--f-pixel); letter-spacing: .04em; }
+
+/* ---- title screen ---- */
+.title-hero { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.title-hero canvas { width: 96px; height: 96px; image-rendering: pixelated; animation: bob 1.2s steps(2) infinite; }
+.hero-stat { display: grid; gap: 4px; font-family: var(--f-pixel); }
+.hero-stat .lv { font-size: 1.3rem; color: var(--accent); }
+.expbar { width: 200px; max-width: 100%; height: 8px; border: 2px solid var(--win-line); border-radius: 3px; overflow: hidden; }
+.expbar i { display: block; height: 100%; background: var(--accent); }
+.hero-stat small { color: var(--muted); font-size: .8rem; }
+.settings { display: grid; gap: 16px; margin-top: 16px; }
+.field-row { display: grid; gap: 6px; }
+.field-row > .lbl { font-family: var(--f-pixel); font-size: .85rem; color: var(--muted); letter-spacing: .1em; }
+.conv { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.conv .arrow { font-family: var(--f-pixel); font-size: 1.3rem; color: var(--accent); }
+select {
+  font: inherit; font-size: max(16px, 1rem); font-weight: 700; color: var(--fg);
+  background: var(--key); border: 2px solid var(--line); border-radius: 8px;
+  padding: 8px 36px 8px 12px; min-width: 9.5em; max-width: 100%;
+  appearance: none; -webkit-appearance: none; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--accent) 50%), linear-gradient(135deg, var(--accent) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 55%, calc(100% - 12px) 55%;
+  background-size: 6px 6px; background-repeat: no-repeat;
+}
+.seg { display: inline-flex; border: 2px solid var(--accent); border-radius: 8px; overflow: hidden; width: fit-content; max-width: 100%; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { padding: 6px 16px; cursor: pointer; font-family: var(--f-pixel); color: var(--accent); text-align: center; line-height: 1.4; }
+.seg label small { display: block; font-size: .68rem; color: var(--muted); }
+.seg input:not(:first-child) + label { border-left: 2px solid var(--accent); }
+.seg input:checked + label { background: var(--accent); color: var(--accent-fg); }
+.seg input:checked + label small { color: var(--accent-fg); }
+.seg input:focus-visible + label { outline: 2px solid var(--fg); outline-offset: -4px; }
+.note { margin: 0; font-size: .85rem; color: var(--muted); }
+.note.err { color: var(--bad); font-weight: 700; }
+.note-list { margin: 0; padding-left: 1.3em; display: grid; gap: 2px; font-size: .85rem; color: var(--muted); line-height: 1.6; }
+.note-list li::marker { color: var(--accent); }
+.reset-area { margin-top: 14px; display: grid; gap: 8px; justify-items: start; }
+#btn-reset { padding-inline: 0; }
+.reset-confirm { border: 2px solid var(--bad); border-radius: 8px; padding: 10px 12px; display: grid; gap: 8px; width: 100%; }
+.reset-confirm p { margin: 0; font-size: .88rem; }
+.btn.danger { background: var(--bad); border-color: var(--bad); color: var(--win); box-shadow: 0 3px 0 #7a1f1f; }
+.last { font-size: .85rem; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 12px; margin: 16px 0 0; }
+
+/* ---- battle field ---- */
+.field {
+  position: relative; overflow: hidden; border-radius: 10px;
+  border: 3px solid var(--win-line); box-shadow: 0 0 0 3px var(--win);
+  background: linear-gradient(180deg, var(--sky) 0%, var(--sky2) 58%, var(--floor) 58%, var(--floor2) 100%);
+  padding: 10px 12px 14px; display: grid; gap: 4px;
+}
+.field::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(#ffffff55 1px, transparent 1.5px), radial-gradient(#ffffff33 1px, transparent 1.5px);
+  background-size: 37px 29px, 53px 41px; background-position: 0 0, 19px 13px;
+  -webkit-mask-image: linear-gradient(#000 0 50%, transparent 58%); mask-image: linear-gradient(#000 0 50%, transparent 58%);
+}
+.ehead { position: relative; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: var(--f-pixel); background: #05060fcc; border: 2px solid var(--win-line); border-radius: 6px; padding: 4px 10px; justify-self: center; max-width: 100%; }
+.ehead .nm { font-size: 1rem; }
+.bar { width: 140px; max-width: 40vw; height: 10px; border: 2px solid var(--win-line); border-radius: 3px; background: #000; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 100%; background: var(--good); transition: width .5s steps(10), background .3s; }
+.bar i.mid { background: var(--hp-mid); }
+.bar i.low { background: var(--bad); }
+.ehead .num { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stage { position: relative; display: grid; place-items: center; height: 168px; }
+.stage::after { content: ""; position: absolute; bottom: 10px; width: 120px; height: 16px; border-radius: 50%; background: #00000066; }
+.stage canvas { position: relative; z-index: 1; width: 136px; height: 136px; image-rendering: pixelated; animation: bob 1.2s steps(2) infinite; }
+@keyframes bob { 50% { transform: translateY(-4px); } }
+.stage.hit canvas { animation: hit .5s linear; }
+@keyframes hit {
+  0%, 100% { transform: none; filter: none; }
+  10%, 30%, 50% { filter: brightness(4) saturate(0); }
+  20% { transform: translateX(-10px); filter: none; }
+  40% { transform: translateX(10px); filter: none; }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(3px); }
+}
+.stage.dead canvas { animation: vanish .9s steps(9) forwards; }
+@keyframes vanish {
+  0% { opacity: 1; } 20% { opacity: 0; } 30% { opacity: 1; } 45% { opacity: 0; } 55% { opacity: 1; }
+  100% { opacity: 0; transform: scaleY(.1) translateY(60px); }
+}
+.stage.gone canvas { opacity: 0; animation: none; }
+.stage.appear canvas { animation: appear .6s steps(6); }
+@keyframes appear { 0% { opacity: 0; transform: scale(.4); } 100% { opacity: 1; transform: scale(1); } }
+.stage.attack canvas { animation: lunge .45s ease-in-out; }
+@keyframes lunge { 40% { transform: translateY(14px) scale(1.25); } }
+.slash { position: absolute; z-index: 2; width: 180px; height: 5px; background: var(--fg); box-shadow: 0 0 8px var(--fg); border-radius: 3px; transform: rotate(-35deg) scaleX(0); opacity: 0; pointer-events: none; }
+.slash.go { animation: slash .32s ease-out; }
+.slash.crit { background: var(--accent); box-shadow: 0 0 14px var(--accent); height: 8px; }
+@keyframes slash { 0% { transform: rotate(-35deg) scaleX(0); opacity: 1; } 60% { transform: rotate(-35deg) scaleX(1); opacity: 1; } 100% { transform: rotate(-35deg) scaleX(1); opacity: 0; } }
+.pops { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.pop { position: absolute; left: 50%; top: 40%; transform: translateX(-50%); font-family: var(--f-pixel); font-size: 2rem; color: var(--fg); text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000; animation: popup 1.1s ease-out forwards; white-space: nowrap; }
+.pop.crit { color: var(--accent); font-size: 2.6rem; }
+.pop.heal { color: var(--good); font-size: 1.4rem; top: 70%; }
+.pop.miss { color: var(--muted); font-size: 1.4rem; }
+@keyframes popup { 0% { opacity: 0; transform: translate(-50%, 10px) scale(.6); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.15); } 30% { transform: translate(-50%, -6px) scale(1); } 100% { opacity: 0; transform: translate(-50%, -40px); } }
+.redflash { position: fixed; inset: 0; background: var(--bad); opacity: 0; pointer-events: none; z-index: 40; }
+.redflash.go { animation: rflash .45s ease-out; }
+@keyframes rflash { 0% { opacity: .45; } 100% { opacity: 0; } }
+.shake { animation: shake .4s linear; }
+@keyframes shake { 15% { transform: translate(-6px, 2px); } 35% { transform: translate(6px, -2px); } 55% { transform: translate(-4px, 1px); } 75% { transform: translate(3px, 0); } }
+
+/* ---- status + message ---- */
+.status { display: flex; align-items: center; gap: 8px 18px; flex-wrap: wrap; font-family: var(--f-pixel); padding: 10px 14px; }
+.status .who { font-size: 1.05rem; }
+.status .who b { color: var(--accent); font-weight: 400; margin-left: 6px; }
+.status .hp { display: flex; align-items: center; gap: 8px; }
+.status .hp span { font-variant-numeric: tabular-nums; }
+.status .meta { margin-left: auto; color: var(--muted); font-size: .85rem; display: flex; gap: 14px; flex-wrap: wrap; }
+.status .meta b { color: var(--fg); font-weight: 400; }
+.status.hurt { animation: shake .4s linear; border-color: var(--bad); }
+.status .exp { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--muted); }
+.bar.ebar { width: 90px; height: 8px; }
+.bar.ebar i { background: var(--accent); }
+.status.lvflash { animation: lvflash 1s ease-out; }
+@keyframes lvflash { 0%, 60% { border-color: var(--accent); box-shadow: 0 0 0 3px var(--win), 0 0 18px var(--accent); } }
+.pop.lvup { color: var(--accent); font-size: 1.7rem; top: 8%; }
+.msg { font-family: var(--f-pixel); font-size: 1.05rem; line-height: 1.8; min-height: 5.6em; white-space: pre-line; cursor: pointer; position: relative; }
+.msg .more { position: absolute; right: 12px; bottom: 6px; color: var(--accent); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ---- question card (calculator etc.) ---- */
+.card { background: var(--paper); border: 2px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
+.qhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); }
+.qhead .tag { color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: 1px 8px; font-weight: 700; letter-spacing: .04em; }
+.qhead .turn { font-family: var(--f-pixel); }
+.qbody { display: flex; gap: 16px; align-items: flex-start; }
+.tile { flex: none; width: 96px; aspect-ratio: 1; max-width: 100%; border: 2px solid var(--fg); border-radius: 6px; padding: 6px 8px; display: grid; grid-template-rows: auto 1fr auto; text-align: center; }
+.tile .mm { font-family: var(--f-num); font-size: .72rem; text-align: left; color: var(--muted); }
+.tile .fm { font-family: var(--f-num); font-weight: 600; font-size: 1.25rem; align-self: center; line-height: 1.1; word-break: break-all; }
+.tile .fm.long { font-size: .9rem; }
+.tile .nm { font-size: .68rem; color: var(--muted); line-height: 1.3; }
+.qtext { font-size: 1.1rem; line-height: 1.9; margin: 0; min-width: 0; }
+.qtext .v { font-family: var(--f-num); font-weight: 600; background: var(--accent-soft); color: var(--accent); padding: 0 4px; border-radius: 3px; white-space: nowrap; }
+
+.calc { display: grid; gap: 10px; max-width: 380px; width: 100%; }
+.screen { border: 2px solid var(--line); border-radius: 10px; background: #070920; padding: 10px 12px; display: grid; gap: 2px; min-height: 80px; }
+.screen.dis { opacity: .6; }
+.expr { font-family: var(--f-num); font-size: 1.25rem; text-align: right; overflow-wrap: anywhere; min-height: 1.6em; line-height: 1.5; }
+.expr .caret { display: inline-block; width: 2px; height: 1.1em; background: var(--accent); vertical-align: -0.15em; margin-left: 1px; animation: blink 1s steps(1) infinite; }
+.preview { font-family: var(--f-num); text-align: right; color: var(--muted); font-size: .95rem; font-variant-numeric: tabular-nums; }
+.preview b { color: var(--fg); font-size: 1.1rem; }
+.unitline { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); }
+.unitline b { font-family: var(--f-num); color: var(--fg); }
+.keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.key { font-family: var(--f-num); font-size: 1.1rem; font-weight: 600; cursor: pointer; border: 2px solid var(--line); background: var(--key); color: var(--fg); border-radius: 8px; padding: 8px 0; min-height: 46px; touch-action: manipulation; box-shadow: 0 3px 0 #00000088; }
+.key.op { background: var(--key-op); }
+.key.fn { color: var(--bad); }
+.key.const { font-size: .85rem; grid-column: span 2; color: var(--accent); }
+.key:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #00000088; }
+.key:disabled { opacity: .4; cursor: default; }
+
+.btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { font-family: var(--f-pixel); font-size: 1rem; cursor: pointer; border-radius: 8px; padding: 8px 18px; border: 2px solid var(--accent); background: var(--accent); color: var(--accent-fg); touch-action: manipulation; box-shadow: 0 3px 0 #7a5a00; }
+.btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #7a5a00; }
+.btn.big { font-size: 1.15rem; padding: 10px 28px; }
+.btn.ghost { background: transparent; color: var(--accent); box-shadow: none; }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--muted); text-decoration: underline; padding-inline: 6px; box-shadow: none; font-family: var(--f-body); font-size: .85rem; }
+.btn:disabled { opacity: .4; cursor: default; }
+.kbd { font-size: .75rem; color: var(--muted); margin: 0; }
+@media (hover: none) { .kbd { display: none; } }
+button:focus-visible, select:focus-visible, .msg:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+
+.result { border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; }
+.result.ok { background: var(--good-soft); }
+.result.ng { background: var(--bad-soft); }
+.result h3 { margin: 0; font-size: 1.05rem; font-family: var(--f-pixel); font-weight: 400; }
+.result.ok h3 { color: var(--good); }
+.result.ng h3 { color: var(--bad); }
+.ansline { font-family: var(--f-num); font-weight: 600; }
+.steps { margin: 0; padding-left: 1.4em; display: grid; gap: 4px; }
+.steps li { font-size: .95rem; }
+.steps .f { font-family: var(--f-num); font-size: .9rem; overflow-wrap: anywhere; }
+.hint { background: var(--accent-soft); border-radius: 8px; padding: 10px 14px; font-size: .92rem; display: grid; gap: 6px; }
+.route { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: .85rem; font-weight: 700; }
+.route i { font-style: normal; font-family: var(--f-num); font-size: .78rem; background: var(--accent); color: var(--accent-fg); border-radius: 3px; padding: 0 6px; }
+.route .ar { color: var(--muted); font-weight: 400; }
+
+/* ---- summary ---- */
+.sum-title { font-family: var(--f-pixel); font-size: 1.8rem; margin: 0; line-height: 1.3; }
+.sum-title.win-t { color: var(--accent); text-shadow: 3px 3px 0 #5a2a00; }
+.sum-title.lose-t { color: var(--bad); }
+.sum-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 14px 0; }
+.sum-grid div { border: 2px solid var(--line); border-radius: 8px; padding: 8px 10px; display: grid; }
+.sum-grid small { font-family: var(--f-pixel); color: var(--muted); font-size: .8rem; }
+.sum-grid b { font-family: var(--f-pixel); font-weight: 400; font-size: 1.5rem; color: var(--fg); }
+.lvup { font-family: var(--f-pixel); color: var(--accent); margin: 0 0 12px; font-size: 1.1rem; }
+.review { list-style: none; margin: 16px 0 0; padding: 0; display: grid; }
+.review li { display: grid; grid-template-columns: 2em minmax(0, 1fr); gap: 4px 8px; padding: 10px 0; border-top: 1px solid var(--line); }
+.review .mk { font-weight: 900; font-size: 1.1rem; text-align: center; }
+.review .mk.ok { color: var(--good); }
+.review .mk.ng { color: var(--bad); }
+.review .qt { font-size: .92rem; line-height: 1.7; }
+.review .qa { grid-column: 2; font-size: .82rem; color: var(--muted); }
+.review .qa b { font-family: var(--f-num); color: var(--fg); }
+
+/* ---- aside ---- */
+aside { display: grid; gap: 16px; min-width: 0; }
+.panel h2 { margin: 0 0 10px; font-family: var(--f-pixel); font-weight: 400; font-size: .9rem; letter-spacing: .1em; color: var(--accent); }
+.panel { display: grid; gap: 4px; }
+.map { display: grid; grid-template-columns: minmax(0, 1fr) minmax(52px, .8fr) minmax(0, 1.1fr) minmax(52px, .8fr) minmax(0, 1fr); grid-template-areas: "m em n eN N" ". . eV . ." ". . V . ."; align-items: center; row-gap: 2px; }
+.node { border: 2px solid var(--line); border-radius: 8px; padding: 6px 4px; text-align: center; display: grid; line-height: 1.25; transition: background .2s, border-color .2s; }
+.node span { font-size: .72rem; color: var(--muted); }
+.node b { font-family: var(--f-num); font-size: 1.05rem; }
+.node small { font-family: var(--f-num); font-size: .68rem; color: var(--muted); }
+.node.center { border-color: var(--fg); }
+.node.on { border-color: var(--accent); background: var(--accent-soft); }
+.edge { display: grid; justify-items: center; font-family: var(--f-num); font-size: .66rem; color: var(--muted); line-height: 1.5; }
+.edge span { padding: 0 4px; border-radius: 3px; white-space: nowrap; }
+.edge span.on { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.edge.v { grid-template-columns: auto auto; gap: 6px; padding-block: 4px; }
+.edge.v::before { content: ""; grid-column: 1 / -1; grid-row: 1; justify-self: center; width: 2px; height: 100%; background: var(--line); }
+.edge.v span { grid-row: 1; position: relative; }
+.map-note { margin: 8px 0 0; font-size: .8rem; color: var(--muted); }
+.consts { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+.el { border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; display: flex; justify-content: space-between; align-items: baseline; gap: 4px; font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+.el b { font-size: .9rem; }
+.el span { font-size: .78rem; color: var(--muted); }
+.kv { display: grid; gap: 4px; font-size: .88rem; margin-bottom: 12px; }
+.kv div { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.kv b { font-family: var(--f-num); font-weight: 600; }
+
+.zk-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.zk-count { font-family: var(--f-pixel); color: var(--accent); font-size: 1.1rem; }
+.zk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+.zk { border: 2px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 4px; justify-items: center; text-align: center; align-content: start; }
+.zk canvas { width: 80px; height: 80px; image-rendering: pixelated; }
+.zk-no { font-family: var(--f-pixel); font-size: .75rem; color: var(--muted); }
+.zk-name { font-family: var(--f-pixel); color: var(--accent); font-size: 1.02rem; }
+.zk.unknown .zk-name { color: var(--muted); }
+.zk-stat, .zk-kills { font-family: var(--f-pixel); font-size: .78rem; }
+.zk-kills { color: var(--good); }
+.zk-desc { margin: 0; font-size: .78rem; line-height: 1.6; color: var(--muted); text-align: left; }
+@media (max-width: 600px) { .zk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .zk canvas { width: 64px; height: 64px; } }
+#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+
+/* ---- phone ---- */
+@media (max-width: 600px) {
+  .wrap { padding-block: 14px 40px; gap: 12px; }
+  h1 { font-size: 1.4rem; }
+  .win { padding: 12px; }
+  .stage { height: 140px; }
+  .stage canvas { width: 112px; height: 112px; }
+  .msg { font-size: .98rem; min-height: 5.4em; }
+  .status .meta { margin-left: 0; }
+  .card { padding: 14px 12px; gap: 14px; }
+  .tile { width: 72px; padding: 4px 5px; border-width: 1.5px; }
+  .tile .mm { font-size: .62rem; }
+  .tile .fm { font-size: 1rem; }
+  .tile .fm.long { font-size: .72rem; }
+  .tile .nm { font-size: .6rem; }
+  .qbody { gap: 12px; }
+  .qtext { font-size: 1rem; line-height: 1.8; }
+  .calc { max-width: none; }
+  .screen { min-height: 70px; padding: 8px 10px; }
+  .keys { gap: 5px; }
+  .key { min-height: 44px; padding: 0; }
+  #battle .btns { display: grid; grid-template-columns: 1fr 1fr; }
+  #btn-check { grid-column: 1 / -1; padding: 12px; font-size: 1.1rem; }
+  #btn-quit { grid-column: 1 / -1; justify-self: center; }
+  .conv { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .conv select { width: 100%; }
+  .conv .arrow { transform: rotate(90deg); justify-self: center; line-height: 1.2; }
+  .seg { width: 100%; }
+  .seg label { flex: 1; padding-inline: 0; }
+  #btn-start { width: 100%; }
+  #summary .btns { display: grid; }
+  .steps { padding-left: 1.2em; }
+  .steps .f { font-size: .85rem; }
+}
+/* ---- phone: compact battle header (monster, status, messages) ---- */
+@media (max-width: 600px) {
+  #battle { gap: 8px; }
+  #battle .win { box-shadow: 0 0 0 2px var(--win); border-width: 2px; }
+  .field { padding: 5px 8px 6px; gap: 0; border-width: 2px; box-shadow: 0 0 0 2px var(--win); }
+  .ehead { padding: 1px 8px; gap: 6px; border-width: 1.5px; }
+  .ehead .nm { font-size: .82rem; }
+  .ehead .num { font-size: .68rem; }
+  .bar { width: 90px; height: 8px; border-width: 1.5px; }
+  .stage { height: 88px; }
+  .stage::after { width: 72px; height: 9px; bottom: 3px; }
+  .stage canvas { width: 80px; height: 80px; }
+  .slash { width: 110px; height: 4px; }
+  .pop { font-size: 1.4rem; }
+  .pop.crit { font-size: 1.8rem; }
+  .pop.heal, .pop.miss { font-size: 1rem; }
+  .pop.lvup { font-size: 1.15rem; top: 2%; }
+  .status { padding: 5px 10px; gap: 0 10px; }
+  .status .who { font-size: .82rem; }
+  .status .hp, .status .exp { gap: 5px; font-size: .74rem; }
+  .bar.ebar { width: 56px; height: 6px; }
+  .status .meta { font-size: .7rem; gap: 10px; }
+  .msg { font-size: .8rem; line-height: 1.55; min-height: 0; height: calc(4 * 1.55em + 12px); overflow-y: auto; padding: 6px 10px; }
+
+  /* monster on the left, hero status on the right, messages below: the question starts high on the screen */
+  .wrap[data-screen="battle"] { padding-block-start: 10px; }
+  .wrap[data-screen="battle"] > h1 { display: none; }
+  #battle { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "field status" "msg msg" "quiz quiz"; column-gap: 10px; }
+  #field { grid-area: field; }
+  #status { grid-area: status; }
+  #msg { grid-area: msg; height: calc(3 * 1.55em + 12px); }
+  #quiz { grid-area: quiz; }
+  .field { align-content: start; }
+  .ehead { flex-wrap: wrap; justify-content: center; row-gap: 0; padding: 1px 6px; width: 100%; }
+  .ehead .nm { width: 100%; text-align: center; font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ehead .bar { flex: 1; width: auto; min-width: 0; }
+  .stage { height: 78px; }
+  .stage canvas { width: 72px; height: 72px; }
+  .stage::after { width: 60px; }
+  .status { display: grid; align-content: center; gap: 3px; }
+  .status .hp, .status .exp { display: grid; grid-template-columns: 2.2em minmax(0, 1fr); column-gap: 5px; }
+  .status .hp .bar, .status .exp .bar { width: 100%; }
+  .status .hp > span, .status .exp > span { grid-column: 2; font-size: .68rem; line-height: 1.2; }
+  .status .meta { display: grid; gap: 0; }
+
+  /* tighter question card; the action buttons stay pinned to the bottom of the screen while answering */
+  #quiz { padding: 10px 12px 0; gap: 10px; }
+  #quiz .qbody .tile { width: 60px; }
+  #quiz .qtext { font-size: .95rem; line-height: 1.7; }
+  .screen { min-height: 0; padding: 6px 10px; }
+  .expr { font-size: 1.15rem; }
+  .preview { font-size: .85rem; }
+  .unitline { margin-top: -4px; }
+  .keys { gap: 4px; }
+  .key { min-height: 40px; font-size: 1rem; box-shadow: 0 2px 0 #00000088; }
+  .unitline { display: none; }
+  .key { min-height: 38px; }
+  #battle .btns {
+    position: sticky; bottom: 0; z-index: 5;
+    margin-inline: -12px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: var(--paper); border-top: 2px solid var(--line);
+    grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 6px; align-items: stretch;
+  }
+  #btn-check { grid-column: 3; grid-row: 1; padding: 8px 4px; font-size: .95rem; white-space: nowrap; }
+  #btn-hint, #btn-skip { font-size: .8rem; padding: 6px 8px; }
+  #battle .btns .long { display: none; }
+  #btn-quit { grid-column: 4; grid-row: 1; justify-self: stretch; font-size: .72rem; padding: 6px 0; }
+}
+.key .kh { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .key { position: relative; }
+  .key .kh { display: block; position: absolute; right: 6px; bottom: 2px; font-size: .6rem; font-weight: 400; color: var(--muted); line-height: 1; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <h1>モル計算クエスト</h1>
+
+  <div class="main">
+    <div class="col">
+      <!-- title screen -->
+      <section class="win" id="home">
+        <div class="title-hero">
+          <canvas id="hero-sprite" width="32" height="32" aria-hidden="true"></canvas>
+          <div class="hero-stat">
+            <span class="lv" id="h-lv"></span>
+            <div class="expbar" aria-hidden="true"><i id="h-exp"></i></div>
+            <small id="h-exptext"></small>
+          </div>
+        </div>
+        <div class="settings">
+          <div class="field-row">
+            <span class="lbl">▶ もんだいの しゅるい</span>
+            <div class="conv">
+              <select id="sel-from" aria-label="与えられる量">
+                <option value="any">ランダム</option>
+                <option value="m">質量 [g]</option>
+                <option value="n">物質量 [mol]</option>
+                <option value="N">粒子数 [個]</option>
+                <option value="V">気体の体積 [L]</option>
+              </select>
+              <span class="arrow" aria-hidden="true">→</span>
+              <select id="sel-to" aria-label="求める量">
+                <option value="any">ランダム</option>
+                <option value="n">物質量 [mol]</option>
+                <option value="m">質量 [g]</option>
+                <option value="N">粒子数 [個]</option>
+                <option value="V">気体の体積 [L]</option>
+                <option value="A">原子の数 [個]</option>
+              </select>
+            </div>
+            <p class="note" id="combo-note"></p>
+          </div>
+          <div class="field-row">
+            <span class="lbl">▶ たおす てきの かず</span>
+            <div class="seg" role="radiogroup" aria-label="倒す敵の数">
+              <input type="radio" name="count" id="c1" value="1"><label for="c1">1体<small>約7問</small></label>
+              <input type="radio" name="count" id="c3" value="3" checked><label for="c3">3体<small>約12問</small></label>
+              <input type="radio" name="count" id="c5" value="5"><label for="c5">5体<small>約18問</small></label>
+              <input type="radio" name="count" id="c10" value="10"><label for="c10">10体<small>約40問</small></label>
+            </div>
+            <ul class="note-list">
+              <li>問題数は、全問正解に近いときの目安です（レベルが上がると少なくなります）。</li>
+              <li>10体をえらぶと、全10種類のモンスターとたたかえます。</li>
+            </ul>
+          </div>
+          <div class="field-row">
+            <span class="lbl">▶ あそびかた</span>
+            <ul class="note-list">
+              <li>問題に正解すると、モンスターにこうげきします。</li>
+              <li>連続で正解するとダメージが上がり、3問連続でHPが回復します。</li>
+              <li>正解するたびに経験値が入り、戦闘中でもレベルが上がります。</li>
+              <li>まちがえると、モンスターから反撃を受けます。</li>
+              <li>えらんだ数の敵をすべてたおすと、クリアです。</li>
+            </ul>
+          </div>
+          <div class="btns"><button class="btn big" id="btn-start" type="button">ぼうけんに でる</button></div>
+        </div>
+        <div class="btns" style="margin-top:12px"><button class="btn ghost" id="btn-zukan" type="button">モンスターずかん</button></div>
+        <p class="last" id="last" hidden></p>
+        <div class="reset-area">
+          <button class="btn quiet" id="btn-reset" type="button">レベルとずかんをリセット</button>
+          <div class="reset-confirm" id="reset-confirm" hidden>
+            <p id="reset-text"></p>
+            <div class="btns">
+              <button class="btn danger" id="btn-reset-yes" type="button">リセットする</button>
+              <button class="btn ghost" id="btn-reset-no" type="button">やめる</button>
+            </div>
+          </div>
+          <p class="note" id="reset-done" hidden>レベルとずかんをリセットしました。レベル1から ぼうけんを はじめましょう。</p>
+        </div>
+      </section>
+
+      <!-- monster book -->
+      <section class="win" id="zukan" hidden>
+        <div class="zk-head"><h2 class="sum-title" style="font-size:1.4rem">モンスターずかん</h2><span class="zk-count" id="zk-count"></span></div>
+        <p class="note">たおした モンスターが とうろくされます。まだ たおしていない モンスターは かげだけ うつります。</p>
+        <div class="zk-grid" id="zk-grid"></div>
+        <div class="btns" style="margin-top:14px"><button class="btn" id="btn-zk-back" type="button">タイトルへ もどる</button></div>
+      </section>
+
+      <!-- battle -->
+      <div id="battle" hidden class="col">
+        <section class="field" id="field" aria-label="バトル画面">
+          <div class="ehead"><span class="nm" id="e-name"></span><div class="bar" aria-hidden="true"><i id="e-hp"></i></div><span class="num" id="e-hpt"></span></div>
+          <div class="stage" id="stage">
+            <canvas id="e-sprite" width="32" height="32" aria-hidden="true"></canvas>
+            <div class="slash" id="slash"></div>
+            <div class="pops" id="pops"></div>
+          </div>
+        </section>
+        <section class="win status" id="status">
+          <span class="who">ゆうしゃ<b id="p-lv"></b></span>
+          <span class="hp">HP <div class="bar" aria-hidden="true"><i id="p-hp"></i></div><span id="p-hpt"></span></span>
+          <span class="exp">EXP <div class="bar ebar" aria-hidden="true"><i id="p-exp"></i></div><span id="p-expt"></span></span>
+          <span class="meta"><span>たおした <b id="p-kills">0</b>体</span><span>れんぞく <b id="p-combo">0</b></span></span>
+        </section>
+        <section class="win msg" id="msg" tabindex="0" aria-live="polite"></section>
+
+        <section class="card" id="quiz">
+          <div class="qhead"><span class="tag" id="q-tag"></span><span class="turn" id="q-no"></span></div>
+          <div class="qbody">
+            <div class="tile" aria-hidden="true"><div class="mm" id="t-mm"></div><div class="fm" id="t-fm"></div><div class="nm" id="t-nm"></div></div>
+            <p class="qtext" id="q-text"></p>
+          </div>
+          <div class="calc">
+            <div class="screen" id="screen"><div class="expr" id="expr" aria-live="off"></div><div class="preview" id="preview"></div></div>
+            <div class="unitline"><span>答えの単位</span><b id="ans-unit"></b></div>
+            <div class="keys" id="keys">
+              <button class="key fn" data-k="C" type="button" aria-label="すべて消す">C</button>
+              <button class="key fn" data-k="BS" type="button" aria-label="1文字消す">⌫</button>
+              <button class="key op" data-k="(" type="button">(</button>
+              <button class="key op" data-k=")" type="button">)</button>
+              <button class="key" data-k="7" type="button">7</button>
+              <button class="key" data-k="8" type="button">8</button>
+              <button class="key" data-k="9" type="button">9</button>
+              <button class="key op" data-k="/" type="button" aria-label="割る">÷</button>
+              <button class="key" data-k="4" type="button">4</button>
+              <button class="key" data-k="5" type="button">5</button>
+              <button class="key" data-k="6" type="button">6</button>
+              <button class="key op" data-k="*" type="button" aria-label="掛ける">×</button>
+              <button class="key" data-k="1" type="button">1</button>
+              <button class="key" data-k="2" type="button">2</button>
+              <button class="key" data-k="3" type="button">3</button>
+              <button class="key op" data-k="-" type="button" aria-label="引く">−</button>
+              <button class="key" data-k="0" type="button">0</button>
+              <button class="key" data-k="." type="button">.</button>
+              <button class="key op" data-k="E" type="button" aria-label="×10の累乗" title="キーボード：E">×10<sup>n</sup><small class="kh">E</small></button>
+              <button class="key op" data-k="+" type="button" aria-label="足す">+</button>
+              <button class="key const" data-k="NA" type="button" title="キーボード：A">6.0×10<sup>23</sup><small class="kh">A</small></button>
+              <button class="key const" data-k="VM" type="button" title="キーボード：V">22.4<small class="kh">V</small></button>
+            </div>
+          </div>
+          <div class="btns">
+            <button class="btn" id="btn-check" type="button">こうげき！<span class="long">（答え合わせ）</span></button>
+            <button class="btn ghost" id="btn-hint" type="button">ヒント</button>
+            <button class="btn ghost" id="btn-skip" type="button">ぼうぎょ<span class="long">（解答を見る）</span></button>
+            <button class="btn quiet" id="btn-quit" type="button">にげる<span class="long">（タイトルへ）</span></button>
+          </div>
+          <p class="kbd">キーボードでも入力できます（× → *、÷ → /、×10ⁿ → E、6.0×10²³ → A、22.4 → V、Enter で答え合わせ・次へ、Esc で消去）。</p>
+          <div class="hint" id="hint" hidden></div>
+          <div class="result" id="result" hidden></div>
+        </section>
+      </div>
+
+      <!-- summary -->
+      <section class="win" id="summary" hidden>
+        <h2 class="sum-title" id="sum-title"></h2>
+        <div class="sum-grid">
+          <div><small>せいかい</small><b id="sum-score"></b></div>
+          <div><small>たおした モンスター</small><b id="sum-kills"></b></div>
+          <div><small>かくとく EXP</small><b id="sum-exp"></b></div>
+        </div>
+        <p class="lvup" id="sum-lvup" hidden></p>
+        <div class="btns">
+          <button class="btn" id="btn-again" type="button">もういちど ぼうけん</button>
+          <button class="btn ghost" id="btn-home" type="button">タイトルへ もどる</button>
+        </div>
+        <ol class="review" id="review"></ol>
+      </section>
+    </div>
+
+    <aside>
+      <section class="win panel">
+        <h2>まほうの ちず（物質量を中心に考える）</h2>
+        <div class="map" id="map">
+          <div class="node" data-k="m" style="grid-area:m"><span>質量</span><b>m</b><small>g</small></div>
+          <div class="edge" style="grid-area:em"><span data-e="m-in">÷M →</span><span data-e="m-out">← ×M</span></div>
+          <div class="node center" data-k="n" style="grid-area:n"><span>物質量</span><b>n</b><small>mol</small></div>
+          <div class="edge" style="grid-area:eN"><span data-e="N-out">×N<sub>A</sub> →</span><span data-e="N-in">← ÷N<sub>A</sub></span></div>
+          <div class="node" data-k="N" style="grid-area:N"><span>粒子数</span><b>N</b><small>個</small></div>
+          <div class="edge v" style="grid-area:eV"><span data-e="V-in">÷22.4 ↑</span><span data-e="V-out">↓ ×22.4</span></div>
+          <div class="node" data-k="V" style="grid-area:V"><span>気体の体積</span><b>V</b><small>L（標準状態）</small></div>
+        </div>
+        <p class="map-note">どの量からも、いったん物質量 n に直してから目的の量へ進みます。ヒントや解答で、使う経路が色付きで表示されます。</p>
+      </section>
+      <section class="win panel">
+        <h2>つかう ていすう</h2>
+        <div class="kv">
+          <div><span>アボガドロ定数 N<sub>A</sub></span><b>6.0×10<sup>23</sup> /mol</b></div>
+          <div><span>気体のモル体積（標準状態）</span><b>22.4 L/mol</b></div>
+        </div>
+        <h2>原子量</h2>
+        <div class="consts" id="consts"></div>
+      </section>
+    </aside>
+  </div>
+</div>
+<div class="redflash" id="redflash"></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<script>
+const FX = (() => {
+  const cv = document.getElementById('fx');
+  const ctx = cv.getContext('2d');
+  const COLORS = ['#ff4d6d', '#ffb703', '#3bc9db', '#5c7cfa', '#51cf66', '#f783ac', '#ffd43b'];
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let parts = [], running = false, W = 0, H = 0;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  function resize() {
+    const d = Math.min(window.devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * d; cv.height = H * d;
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+  }
+  function loop() {
+    ctx.clearRect(0, 0, W, H);
+    parts = parts.filter(p => p.life > 0 && p.y < H + 40);
+    for (const p of parts) {
+      p.vx *= p.drag; p.vy = p.vy * p.drag + p.g;
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life--;
+      const a = Math.min(1, p.life / 30);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.c;
+      if (p.kind === 'spark') {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
+      } else {
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.scale(1, Math.cos(p.rot * 2.3));  // flutter
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      }
+    }
+    ctx.globalAlpha = 1;
+    if (parts.length) requestAnimationFrame(loop); else { running = false; ctx.clearRect(0, 0, W, H); }
+  }
+  function start() { if (!running) { running = true; resize(); requestAnimationFrame(loop); } }
+  // party popper: confetti shot up and inward from both lower corners
+  function cracker() {
+    if (reduce.matches) return;
+    resize();
+    const n = W < 600 ? 60 : 90;
+    for (const side of [0, 1]) {
+      for (let i = 0; i < n; i++) {
+        const ang = side ? rnd(-2.3, -1.75) : rnd(-1.4, -0.85);
+        const sp = rnd(9, 19) * Math.min(1, H / 700 + 0.3);
+        parts.push({ kind: 'conf', x: side ? W + 5 : -5, y: H * 0.92, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+          g: 0.32, drag: 0.965, rot: rnd(0, 6.28), vr: rnd(-0.25, 0.25), w: rnd(6, 11), h: rnd(4, 7),
+          c: COLORS[i % COLORS.length], life: rnd(110, 170) });
+      }
+    }
+    start();
+  }
+  // fireworks: several radial bursts in the upper part of the screen
+  function fireworks(count = 5) {
+    if (reduce.matches) return;
+    resize();
+    for (let k = 0; k < count; k++) {
+      setTimeout(() => {
+        const cx = rnd(W * 0.15, W * 0.85), cy = rnd(H * 0.12, H * 0.45);
+        const c1 = COLORS[Math.floor(rnd(0, COLORS.length))], c2 = '#fff6d5';
+        const m = 70;
+        for (let i = 0; i < m; i++) {
+          const ang = (i / m) * 6.283 + rnd(-0.05, 0.05), sp = rnd(3, 6.5);
+          parts.push({ kind: 'spark', x: cx, y: cy, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+            g: 0.06, drag: 0.97, rot: 0, vr: 0, r: rnd(1.6, 2.8), c: i % 4 ? c1 : c2, life: rnd(60, 95) });
+        }
+        start();
+      }, k * 380);
+    }
+  }
+  addEventListener('resize', () => { if (running) resize(); });
+  return { cracker, fireworks };
+})();
+
+const AM = { H: 1.0, C: 12, N: 14, O: 16, Na: 23, Al: 27, S: 32, Cl: 35.5, Ca: 40, Fe: 56, Cu: 64 };
+const NA = 6.0e23, VM = 22.4;
+
+// kind: mol = 分子, ion = イオン結晶（粒子数の問題には出さない）, metal = 原子
+const SUBS = [
+  { f: 'H<sub>2</sub>', n: '水素', a: { H: 2 }, gas: 1, kind: 'mol' },
+  { f: 'O<sub>2</sub>', n: '酸素', a: { O: 2 }, gas: 1, kind: 'mol' },
+  { f: 'N<sub>2</sub>', n: '窒素', a: { N: 2 }, gas: 1, kind: 'mol' },
+  { f: 'CO<sub>2</sub>', n: '二酸化炭素', a: { C: 1, O: 2 }, gas: 1, kind: 'mol' },
+  { f: 'CO', n: '一酸化炭素', a: { C: 1, O: 1 }, gas: 1, kind: 'mol' },
+  { f: 'CH<sub>4</sub>', n: 'メタン', a: { C: 1, H: 4 }, gas: 1, kind: 'mol' },
+  { f: 'C<sub>3</sub>H<sub>8</sub>', n: 'プロパン', a: { C: 3, H: 8 }, gas: 1, kind: 'mol' },
+  { f: 'NH<sub>3</sub>', n: 'アンモニア', a: { N: 1, H: 3 }, gas: 1, kind: 'mol' },
+  { f: 'Cl<sub>2</sub>', n: '塩素', a: { Cl: 2 }, gas: 1, kind: 'mol' },
+  { f: 'HCl', n: '塩化水素', a: { H: 1, Cl: 1 }, gas: 1, kind: 'mol' },
+  { f: 'SO<sub>2</sub>', n: '二酸化硫黄', a: { S: 1, O: 2 }, gas: 1, kind: 'mol' },
+  { f: 'H<sub>2</sub>O', n: '水', a: { H: 2, O: 1 }, kind: 'mol' },
+  { f: 'C<sub>6</sub>H<sub>12</sub>O<sub>6</sub>', n: 'グルコース', a: { C: 6, H: 12, O: 6 }, kind: 'mol' },
+  { f: 'H<sub>2</sub>SO<sub>4</sub>', n: '硫酸', a: { H: 2, S: 1, O: 4 }, kind: 'mol' },
+  { f: 'C<sub>2</sub>H<sub>5</sub>OH', n: 'エタノール', a: { C: 2, H: 6, O: 1 }, kind: 'mol' },
+  { f: 'NaCl', n: '塩化ナトリウム', a: { Na: 1, Cl: 1 }, kind: 'ion' },
+  { f: 'NaOH', n: '水酸化ナトリウム', a: { Na: 1, O: 1, H: 1 }, kind: 'ion' },
+  { f: 'CaCO<sub>3</sub>', n: '炭酸カルシウム', a: { Ca: 1, C: 1, O: 3 }, kind: 'ion' },
+  { f: 'Fe', n: '鉄', a: { Fe: 1 }, kind: 'metal' },
+  { f: 'Cu', n: '銅', a: { Cu: 1 }, kind: 'metal' },
+  { f: 'Al', n: 'アルミニウム', a: { Al: 1 }, kind: 'metal' },
+];
+SUBS.forEach(s => { s.M = +Object.entries(s.a).reduce((t, [e, k]) => t + AM[e] * k, 0).toFixed(1); });
+
+const QN = { m: '質量', n: '物質量', N: '粒子数', V: '気体の体積', A: '原子の数' };
+const FROMS = ['m', 'n', 'N', 'V'];
+const TOS = ['n', 'm', 'N', 'V', 'A'];
+const N_CHOICES = ['0.10', '0.20', '0.25', '0.30', '0.40', '0.50', '0.75', '1.0', '1.5', '2.0', '2.5', '3.0', '4.0', '5.0', '0.050', '0.020'];
+
+function combos(from, to) {
+  const out = [];
+  for (const f of FROMS) for (const t of TOS) {
+    if (f === t) continue;
+    if (from !== 'any' && f !== from) continue;
+    if (to !== 'any' && t !== to) continue;
+    out.push({ from: f, to: t, label: `${QN[f]} → ${QN[t]}` });
+  }
+  return out;
+}
+
+// ---------- number helpers ----------
+const num = x => String(Number(x.toPrecision(3)));
+function sciParts(x, sig = 2) {
+  let e = Math.floor(Math.log10(Math.abs(x)));
+  let m = +(x / 10 ** e).toPrecision(sig);
+  if (Math.abs(m) >= 10) { m /= 10; e += 1; }
+  return { m: m.toFixed(sig - 1), e };
+}
+const sciHtml = (x, sig) => { const p = sciParts(x, sig); return `${p.m}×10<sup>${p.e}</sup>`; };
+const fmtQty = (k, x) => (k === 'N' || k === 'A') ? sciHtml(x, 2) : num(x);
+const fmtAny = x => (x !== 0 && (Math.abs(x) >= 1e5 || Math.abs(x) < 1e-3)) ? sciHtml(x, 3) : String(Number(x.toPrecision(4)));
+const UNIT = { m: 'g', n: 'mol', N: '個', A: '個', V: 'L' };
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+function mExpr(s) {
+  const parts = Object.entries(s.a).map(([e, k]) => {
+    const w = e === 'H' ? '1.0' : String(AM[e]);
+    return k === 1 ? w : `${w}×${k}`;
+  });
+  return parts.length === 1 && s.a[Object.keys(s.a)[0]] === 1
+    ? `${s.f} の原子量は ${s.M} なので、モル質量 M = ${s.M} g/mol`
+    : `${s.f} の式量・分子量 = ${parts.join(' + ')} = ${s.M} なので、モル質量 M = ${s.M} g/mol`;
+}
+const particle = s => s.kind === 'metal' ? '原子' : '分子';
+
+// ---------- problem generation ----------
+function makeProblem(type) {
+  const needGas = type.from === 'V' || type.to === 'V';
+  const needParticle = type.from === 'N' || type.to === 'N' || type.to === 'A';
+  let pool = SUBS.filter(s => (!needGas || s.gas) && (!needParticle || s.kind !== 'ion'));
+  if (type.to === 'A') pool = pool.filter(s => s.kind === 'mol');
+  const s = pick(pool);
+  let el, k;
+  if (type.to === 'A') {
+    const els = Object.keys(s.a);
+    const multi = els.filter(e => s.a[e] >= 2);
+    el = pick(multi.length ? multi : els); k = s.a[el];
+  }
+  // only use amounts for which every printed value and the answer come out exact, with no rounding
+  const uses = new Set([type.from, type.to]);
+  const exact = (x, sig) => Math.abs(+x.toPrecision(sig) - x) <= 1e-9 * x;
+  const nStr = pick(N_CHOICES.filter(ns => {
+    const n = +ns;
+    return (!uses.has('m') || exact(n * s.M, 3)) && (!uses.has('V') || exact(n * VM, 3))
+      && (!uses.has('N') || exact(n * 6, 2)) && (!uses.has('A') || exact(n * k * 6, 2));
+  }));
+  const n0 = +nStr;
+
+  // the given value, rounded the way it would be printed
+  let given, gHtml;
+  if (type.from === 'n') { given = n0; gHtml = nStr; }
+  if (type.from === 'm') { given = +num(n0 * s.M); gHtml = String(given); }
+  if (type.from === 'V') { given = +num(n0 * VM); gHtml = String(given); }
+  if (type.from === 'N') { const p = sciParts(n0 * NA); given = +p.m * 10 ** p.e; gHtml = sciHtml(given, 2); }
+
+  const n = type.from === 'n' ? given : type.from === 'm' ? given / s.M : type.from === 'V' ? given / VM : given / NA;
+  const steps = [];
+  if (type.from === 'm' || type.to === 'm') steps.push(mExpr(s));
+  if (type.from === 'm') steps.push(`n = m ÷ M = ${gHtml} g ÷ ${s.M} g/mol = <b>${num(n)} mol</b>`);
+  if (type.from === 'N') steps.push(`n = N ÷ N<sub>A</sub> = ${gHtml} ÷ (6.0×10<sup>23</sup> /mol) = <b>${num(n)} mol</b>`);
+  if (type.from === 'V') steps.push(`n = V ÷ 22.4 L/mol = ${gHtml} L ÷ 22.4 L/mol = <b>${num(n)} mol</b>`);
+
+  let ans;
+  if (type.to === 'n') ans = n;
+  if (type.to === 'm') { ans = n * s.M; steps.push(`m = n × M = ${num(n)} mol × ${s.M} g/mol = <b>${num(ans)} g</b>`); }
+  if (type.to === 'V') { ans = n * VM; steps.push(`V = n × 22.4 L/mol = ${num(n)} mol × 22.4 L/mol = <b>${num(ans)} L</b>`); }
+  if (type.to === 'N') { ans = n * NA; steps.push(`N = n × N<sub>A</sub> = ${num(n)} mol × 6.0×10<sup>23</sup> /mol = <b>${sciHtml(ans, 2)} 個</b>`); }
+  if (type.to === 'A') {
+    const nA = n * k;
+    ans = nA * NA;
+    steps.push(`${s.f} 1 分子に ${el} 原子は ${k} 個含まれるので、${el} 原子の物質量 = ${num(n)} mol × ${k} = <b>${num(nA)} mol</b>`);
+    steps.push(`${el} 原子の数 = ${num(nA)} mol × 6.0×10<sup>23</sup> /mol = <b>${sciHtml(ans, 2)} 個</b>`);
+  }
+
+  const v = h => `<span class="v">${h}</span>`;
+  const givenPhrase = {
+    n: `${v(gHtml + ' mol')} の${s.n}`,
+    m: `${v(gHtml + ' g')} の${s.n}`,
+    V: `標準状態で ${v(gHtml + ' L')} の${s.n}`,
+    N: `${v(gHtml + ' 個')} の${s.n}${particle(s)}`,
+  }[type.from];
+  const ask = {
+    n: '物質量は何 mol か。',
+    m: '質量は何 g か。',
+    V: '標準状態での体積は何 L か。',
+    N: `${particle(s)}の数は何個か。`,
+  }[type.to];
+  const text = type.to === 'A'
+    ? `${givenPhrase}に含まれる <b>${el} 原子</b>の数は何個か。`
+    : `${givenPhrase}がある。この${s.n}の${ask}`;
+
+  const hintFirst = {
+    m: '質量 → 物質量は「モル質量 M で割る」。まず M を原子量から求めましょう。',
+    n: '物質量が分かっているので、目的の量へ換算するだけです。',
+    N: '粒子数 → 物質量は「アボガドロ定数 6.0×10²³ で割る」。',
+    V: '気体の体積 → 物質量は「22.4 L/mol で割る」（標準状態）。',
+  }[type.from];
+  const hintNext = type.to === 'A'
+    ? `求めた物質量に、1 分子あたりの ${el} 原子の数（${k} 個）を掛けてから 6.0×10²³ を掛けます。`
+    : { m: '物質量 → 質量は「M を掛ける」。', V: '物質量 → 体積は「22.4 を掛ける」。', N: '物質量 → 粒子数は「6.0×10²³ を掛ける」。', n: '' }[type.to];
+
+  return { type, s, text, ans, steps, hint: [hintFirst, hintNext].filter(Boolean).join(' ') };
+}
+
+function routeHtml(t) {
+  const IN = { m: '÷M', N: '÷N<sub>A</sub>', V: '÷22.4' };
+  const OUT = { m: '×M', N: '×N<sub>A</sub>', V: '×22.4', A: '×個数 ×N<sub>A</sub>' };
+  const ar = '<span class="ar">→</span>';
+  let h = QN[t.from];
+  if (t.from !== 'n') h += `${ar}<i>${IN[t.from]}</i>${ar}物質量`;
+  if (t.to !== 'n') h += `${ar}<i>${OUT[t.to]}</i>${ar}${QN[t.to]}`;
+  return `<div class="route">${h}</div>`;
+}
+const narrow = () => window.matchMedia('(max-width: 820px)').matches;
+
+function isCorrect(user, exact) {
+  if (user === null || !isFinite(user) || user <= 0) return false;
+  if (Math.abs(user - exact) / exact <= 0.02) return true;
+  for (const sig of [2, 3]) {
+    const r = +exact.toPrecision(sig);
+    if (Math.abs(user - r) / r < 1e-9) return true;
+  }
+  return false;
+}
+
+// ---------- calculator ----------
+// internal expression: digits . + - * / ( ) and E (= ×10^)
+function evaluate(s) {
+  let i = 0;
+  const number = () => {
+    const st = i;
+    while (/[\d.]/.test(s[i] || '')) i++;
+    const m = s.slice(st, i);
+    if (!m || m === '.' || (m.match(/\./g) || []).length > 1) throw 0;
+    let v = parseFloat(m);
+    if (s[i] === 'E') {
+      i++;
+      let sign = 1;
+      if (s[i] === '-') { sign = -1; i++; } else if (s[i] === '+') i++;
+      const st2 = i;
+      while (/\d/.test(s[i] || '')) i++;
+      if (st2 === i) throw 0;
+      v *= 10 ** (sign * parseInt(s.slice(st2, i), 10));
+    }
+    return v;
+  };
+  const factor = () => {
+    if (s[i] === '-') { i++; return -factor(); }
+    if (s[i] === '+') { i++; return factor(); }
+    if (s[i] === '(') { i++; const v = expr(); if (s[i] === ')') i++; return v; }
+    return number();
+  };
+  const term = () => {
+    let v = factor();
+    while (s[i] === '*' || s[i] === '/') { const op = s[i++]; const r = factor(); v = op === '*' ? v * r : v / r; }
+    return v;
+  };
+  const expr = () => {
+    let v = term();
+    while (s[i] === '+' || s[i] === '-') { const op = s[i++]; const r = term(); v = op === '+' ? v + r : v - r; }
+    return v;
+  };
+  try { if (!s) return null; const v = expr(); return i === s.length && isFinite(v) ? v : null; } catch (e) { return null; }
+}
+
+function exprHtml(s) {
+  // a power of ten right after ÷ is shown in parentheses so the display reads correctly: a ÷ (1.5×10²³)
+  s = s.replace(/\/([\d.]+E[-+]?\d*)/g, '/($1)');
+  return s
+    .replace(/\*/g, '×').replace(/\//g, '÷').replace(/-/g, '−')
+    .replace(/E([−+]?\d*)/g, (_, p) => `×10<sup>${p || '□'}</sup>`);
+}
+
+let expr = '';
+function press(k) {
+  if (answered) return;
+  const last = expr.slice(-1);
+  const inExp = /E[-+]?\d*$/.test(expr);
+  if (k === 'C') expr = '';
+  else if (k === 'BS') expr = expr.slice(0, -1);
+  else if (k === 'NA') expr += (/[\d.)]/.test(last) ? '*' : '') + '6.0E23';  // shown as ÷(6.0×10²³) only after ÷, see exprHtml
+  else if (k === 'VM') expr += (/[\d.)]/.test(last) ? '*' : '') + '22.4';
+  else if (k === 'E') {
+    if (!/[\d.]/.test(last) || /E/.test(expr.match(/[\d.E+-]*$/)[0].replace(/^[+-]/, ''))) return;
+    expr += 'E';
+  } else if (k === '.') {
+    if (inExp) return;
+    const cur = expr.match(/[\d.]*$/)[0];
+    if (cur.includes('.')) return;
+    expr += cur ? '.' : '0.';
+  } else if (/\d/.test(k)) expr += k;
+  else if (k === '-' && last === 'E') expr += '-';
+  else if ('+-*/'.includes(k)) {
+    if (last === 'E') return;
+    if ('+-*/'.includes(last) && last !== '' ) {
+      // replace operator, but allow "×−" / "÷−" for a negative factor
+      if (k === '-' && (last === '*' || last === '/')) expr += k;
+      else expr = expr.slice(0, -1) + k;
+    } else if (!expr && k !== '-') return;
+    else expr += k;
+  } else if (k === '(') expr += (/[\d.)]/.test(last) ? '*' : '') + '(';
+  else if (k === ')') {
+    const open = (expr.match(/\(/g) || []).length - (expr.match(/\)/g) || []).length;
+    if (open > 0 && /[\d.)]/.test(last)) expr += ')';
+  }
+  if (expr.length > 60) expr = expr.slice(0, 60);
+  renderCalc();
+}
+
+function renderCalc() {
+  $('expr').innerHTML = (expr ? exprHtml(expr) : '<span style="color:var(--muted)">0</span>') + (answered ? '' : '<span class="caret"></span>');
+  const v = evaluate(expr);
+  $('preview').innerHTML = !expr ? '式を入力すると計算結果が出ます'
+    : v === null ? '式が途中です'
+    : `= <b>${fmtAny(v)}</b> ${$('ans-unit').textContent}`;
+}
+
+// ---------- state ----------
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } },
+};
+const $ = id => document.getElementById(id);
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+// ---------- monsters (16x16 pixel sprites) ----------
+const SPRITES = {  // 32x32 dot sprites
+  slime: [
+    '................................',
+    '................................',
+    '................................',
+    '................................',
+    '................................',
+    '................................',
+    '................................',
+    '............X...................',
+    '.........XXXOXXX................',
+    '.......XXOOOOOOOXX..............',
+    '......XOHHHOOOOOOOX..X..........',
+    '.....XOHHHHHOOOOOOOXXOXXX.......',
+    '.....XOOHHHOOOOOOOOOOOOOOX......',
+    '.....XOOOOOOOOOOOOOOHOOOOOX.....',
+    '....XOOOOOOOOOOOOOOOOOOOOOX.....',
+    '.....XOOOOOOOOOOOOOOOOOOOOX.....',
+    '....XOOOOOWWWOOOOOOWWWOOOOOX....',
+    '...XOOOOOOWWKOOOOOOWWKOOOOOOX...',
+    '..XOOOHOOOWKKOOOOOOWKKOOOOOOOX..',
+    '.XOOOOOOOOWKKOOOOOOWKKOOOOOOOOX.',
+    '.XOOOOOOOOOOOOOOOOOOOOOOOOOOOOX.',
+    '.XOOOOOPPOOOOOOOOOOOOOOPPOOOOOX.',
+    '.XOOOOOPPOOOOMMMMMOOOOOPPOOOOOX.',
+    '.XOOOOOOOOOOOOMOMOOOOOOOOOOOOOX.',
+    '..XOOOOOOOOOOOOOOOOOOOOOOOOOOX..',
+    '...XOOOOOOOOOOOOOOOOOOOOOOOOX...',
+    '...XXOODDDDDDDDDDDDDDDDDDOOOX...',
+    '..XDDDDDDDDDDDDDDDDDDDDDDDOOOX..',
+    '..XOOODDDDDDDDDDDDDDDDDDDDOOOX..',
+    '..XOOOXDDDDDDDDDDDDDDDDDDXOOOX..',
+    '..XOOOXXXXXXXXXXXXXXXXXXX.XOX...',
+    '...XXX.....................X....'],
+  cavy: [
+    '................................',
+    '................................',
+    '................................',
+    '................................',
+    '................................',
+    '................................',
+    '................................',
+    '......X..................X......',
+    '....XXBXX..............XXBXX....',
+    '...XBBBBBXXXXXXXXXXXXXXBBBBBX...',
+    '...XBBPBBXOOHOOOOOOOOOXBBPBBX...',
+    '...XBPPPBOHHHHHOOOOOOOOBPPPBX...',
+    '...XBBPBBBOOHOOOOOOOOOBBBPBBX...',
+    '....XOBBBBBBBOOOOOOBBBBBBBOX....',
+    '...XOBBBWWWBBBOOOOBBBWWWBBBOX...',
+    '..XOOBBBWWKBBBOOOOBBBWWKBBBOOX..',
+    '..XOBBBBWKKBBBBOOBBBBWKKBBBBOX..',
+    '.XOOOBBBBBBBBBOOOOBBBBBBBBBOOOX.',
+    '.XOOOBBBBBBBBBOOOOBBBBBBBBBOOOX.',
+    '.XOOOOdddBBBBOOPPOOBBBBdddOOOOX.',
+    '.XOOOOOOddddOOPPPPOOdddOOOOOOOX.',
+    '.XOOOOdddOOOOOOPMOOOOOOdddOOOOX.',
+    '..XOOOOOddddOMMOMMMOdddOOOOOOX..',
+    '..XOOOOOOOOOOOMMMMOOOOOOOOOOOX..',
+    '...XOOOOOOOOOOOOOOOOOOOOOOOOX...',
+    '....XOOOOOOBBBBBBBBBBOOOOOOX....',
+    '.....XOOOBBBBBBBBBBBBBBOOOX.....',
+    '......XXBBBBBBBBBBBBBBBBXX......',
+    '........XBBBBBBBBBBBBBBXX.......',
+    '........XPPPBBBBBBBBBXPPPX......',
+    '........XPPPXXXXXXXXXXPPPX......',
+    '.........XXX..........XXX.......'],
+  flask: [
+    '............XXXXXXXX............',
+    '...........XSSSSSSSSX...........',
+    '...........XSSSSSSSSX...........',
+    '............XGGGGGGX............',
+    '............XGHGGGGX............',
+    '............XGHGGGGX............',
+    '............XGHGGGGX............',
+    '............XGHGGGGX............',
+    '............XGHGGGGX............',
+    '............XGGGGGGX............',
+    '...........XGHGGGGGGX...........',
+    '...........XGHGGGGGGX...........',
+    '..........XGHGGGGGGGGX..........',
+    '..........XGHGGGGGGGGX..........',
+    '.........XGHGGGGGGGGGGX.........',
+    '.........XlHllllllllllX.........',
+    '........XLLHLLLLLLLLLLLX........',
+    '........XLHWWWLLLLWWWLLX........',
+    '.......XLHLWWKLLLLWWKLLLX.......',
+    '......XLLHLWKKLLbLWKKLLLLX......',
+    '......XLLHLLLLLLLLLLLLLLLX......',
+    '.....XLLHLLLLLLLLLLLLLLLLLX.....',
+    '.....XLLHLLLLLMMMMLLbLLLLLX.....',
+    '....XLLHLLLLLLMMMMLLLLLLLLLX....',
+    '....XLLHLLLLbLLLLLLLLLLLLLLX....',
+    '...XLLLLLLLLLLLLLLbLLLLLLLLLX...',
+    '...XLLLLLbLLLLLLLLLLLLLbLLLLX...',
+    '..XLLLLLLLLLLLLLLLLLLLLLLLLLLX..',
+    '..XLLLLLLLLLLLLLLLLLLLLLLLLLLX..',
+    '..XLLLLLLLLLLLLLLLLLLLLLLLLLLX..',
+    '...XXXXXXXXXXXXXXXXXXXXXXXXXX...',
+    '................................'],
+  pet: [
+    '...........XRrRrRrRRX...........',
+    '...........XRrRrRrRRX...........',
+    '...........XRrRrRrRRX...........',
+    '...........XRrRrRrRRX...........',
+    '..........XRRRRRRRRRRX..........',
+    '...........XXGGGGGGXX...........',
+    '............XGGGGGGX............',
+    '.........X.XGGGGGGGX............',
+    '........XHXGGGGGGGGGX...........',
+    '........XHGGGGGGGGGGGX..........',
+    '........XHGGGGGGGGGGGGX.........',
+    '....XXXXGHGGGGGGGGGGGGGXXXXX....',
+    '...XKKKKKKKKKKKKKKKKKKKKKKKKX...',
+    '....XXXGKWWKKKKKKKWWKKKKGXXX....',
+    '......XGKKKKKKKGGKKKKKKKGX......',
+    '......XGKKKKKKKGGKKKKKKKGX......',
+    '......XGGHKKKGGGGGGMKKGGGX......',
+    '......XGGHGGGGMMMMMGGGGGGX......',
+    '......XGGHGGGGGGGGGGGGGGGX......',
+    '......XLLLLLLLLLLLLLLLLLLX......',
+    '......XLLLLLLLLLLLLLLLLLLX......',
+    '......XLLWWWWLWWWWLWWWWLLX......',
+    '......XLLLLLLLLLLLLLLLLLLX......',
+    '......XLLLLLLLLLLLLLLLLLLX......',
+    '......XGGHGGGGGGGGGGGGGGGX......',
+    '......XGGHGGGGGGGGGGGGGGGX......',
+    '......XGGHGGGGGGGGGGGGGGGX......',
+    '......XGGHGGGGGGGGGGGGGGGX......',
+    '......XGGGGGGGGGGGGGGGGGGX......',
+    '.......XGGGGXXGGGGXXGGGGX.......',
+    '.......XGGGGXXGGGGXXGGGGX.......',
+    '........XXXX..XXXX..XXXX........'],
+  ghost: [
+    '................................',
+    '................................',
+    '...........XXXXXXXXXX...........',
+    '.........XXOOOOOOOOOOXX.........',
+    '........XOOOOOOOOOOOOOOX........',
+    '.......XHHHOOOOOOOOOOOOOX.......',
+    '......XHHHHHOOOOOOOOOOOOOX......',
+    '.....XOOHHHOOOOOOOOOOOOOODX.....',
+    '....XOOOOOOOOOOOOOOOOOOOODDX....',
+    '....XOOHOOOOOOOOOOOOOOOOODDX....',
+    '...XOOOOOOOOOOOOOOOOOOOOODDDX...',
+    '...XOOOOOWWWWOOOOOOWWWWOODDDX...',
+    '...XOOOOOWWKKOOOOOOWWKKOODDDX...',
+    '...XOOOOOWKKKOOOOOOWKKKOODDDX...',
+    '...XOOOOOWKKKOOOOOOWKKKOODDDX...',
+    '...XOOOOOOOOOOOOOOOOOOOOODDDX...',
+    '...XOOOOPOOOOOOOOOOOOOOOPDDDX...',
+    '...XOOOPPPOOOOOOOOOOOOOPPPDDX...',
+    '...XOOOOPOOOOOOMMOOOOOOOPDDDX...',
+    '...XOOOOOOOOOOMMMMOOOOOOODDDX...',
+    '...XOOOOOOOOOOOMMOOOOOOOODDDX...',
+    '...XOOOOOOOOOOOOOOOOOOOOODDDX...',
+    '...XOOOOOOOOOOOOOOOOOOOOODDDX...',
+    '...XOOOOOOOOOOOOOOOOOOOOODDDX...',
+    '...XOOOOOOOOOOOOOOOODDDDDDDDDX..',
+    '...XOOOOXXOOOXXOOOXXDDDXXDDDDX..',
+    '...XOOOX..XOX..XOX..XDX..XDDDX..',
+    '....XOOX..XOX..XOX..XDX..XDDX...',
+    '.....XX....X....X....X....XX....',
+    '................................',
+    '................................',
+    '................................'],
+  knight: [
+    '...............XXXRXXX..........',
+    '..............XRRRRRRRX.........',
+    '.............XRRRRRRRRRX...X....',
+    '............XSSSSSSRRRRRX.XSX...',
+    '...........XSSSssSSSRRRX..XSSX..',
+    '..........XSSSSssSSSSXX...XSWX..',
+    '.........XSSSSSssSSSSSX...XSWX..',
+    '.........XSSSSSssSSSSSX...XSWX..',
+    '........XSKKKKKssKKKKKSX..XSWX..',
+    '........XSKKWWKssKWWKKSX..XSWX..',
+    '........XSKKKKKssKKKKKSX..XSWX..',
+    '........XSSSSSSssSSSSSSX..XSWX..',
+    '.XXXXXXXXSSSSSSssSSSSSSX..XSWX..',
+    'XBBBBBBBBBXGGGGGGGGGGXX...XSWX..',
+    'XBBBBYYBBBXGkkGGGGGHGX....XSWX..',
+    'XBBBBYYBBBXGGGGGGGGHGX....XSWX..',
+    'XBYYYYYYYYXGkkkGGGGHGX....XSWX..',
+    'XBYYYYYYYYXGGGGGGGGHGX....XSWX..',
+    'XBBBBYYBBBXGkkGGGGGHGX....XSWX..',
+    'XBBBBYYBBBXGlllllllHGX....XSWX..',
+    'XBBBBYYBBBXGkkkLLLLHGX....XSWX..',
+    '.XBBBYYBBXXGLLLLLLLHGX..XXXSSXX.',
+    '..XBBYYBX.XGkkLLLLLHGX.XYYYYYYYX',
+    '...XBBBX..XGLLLLLLLHGX.XYYYYYYYX',
+    '...XBBBX..XGkkkLLLLHGX..XXXddXX.',
+    '....XBX...XGLLLLLLLHGX....XddX..',
+    '.....X....XGkkLLLLLHGX....XddX..',
+    '.......XXXXGLLLLLLLLGXXXX.XddX..',
+    '......XSSssssssssssssssSSXXYYX..',
+    '......XSSSSSSSSSSSSSSSSSSX.XX...',
+    '......XSSSSSSSSSSSSSSSSSSX......',
+    '.......XXXXXXXXXXXXXXXXXX.......'],
+  bat: [
+    '................................',
+    '....X......................X....',
+    '...XYX.....X.......X......XYX...',
+    '.X..X.....XOX.....XOX......X.X..',
+    'XPX.......XOX....XOOX.......XQX.',
+    'XPPXX....XOOOX...XOOX.....XXQQX.',
+    'XPPPPX...XOOOOX.XOOOOX...XQQQX..',
+    '.XPPPPXX.XOOOXXXXXOOOX.XXQQQQX..',
+    '.XPPPPPPXXOXXOOOOOOXOXXQQQQQQX..',
+    '.XppppWPPXXOOOOOOOOOOXQQQqqqqqX.',
+    'XPPPPPWppppWWWOOOOWWWqqqqqQQQQX.',
+    'XPPPWWWWWpOWWKOOOOWWKOqWWWWWQQX.',
+    'PPPPPPWpPpOWKKOOOOWKKOqQqQQQQQQX',
+    'XPPPPPWPPpOOOOOOOOOOOOqQQqQQQQX.',
+    '.XPPppPPpOOOOOooooOOOOOqQQqqQX..',
+    '..XpPPPpPPOOOooooooOOOQQqQQQqX..',
+    '..XPPPPpPPOOOoMMMMoOOOQQqQQQX...',
+    '.XPPPPpPPPOOooWooWooOOQQQqQQQX..',
+    '.XPPXXpPPPXOOooooooOOQQQQqXQQX..',
+    '..XX..XPPXXOOooooooOOXQQXX.XX...',
+    '.......XX..XXOooooOXX.XX........',
+    '.X..........XddXXddX.........X..',
+    'XYX.........XddXXddX........XYX.',
+    '.XYX........XddXXddX.........XYX',
+    'XYX..........XX..XX.........XYX.',
+    '.X...........................X..',
+    '................................',
+    '................................',
+    '................................',
+    '................................',
+    '................................',
+    '................................'],
+  golem: [
+    '................................',
+    '................................',
+    '.....XXXX.......................',
+    '....XSSSSXXXXXXXXXXXXXXXX.......',
+    '.....XSSSSSSSSSSSSSSSSSSSX......',
+    '......XSSSSSSSSSSSSSSSSSSX......',
+    '.......XGGGGGGGGGGGGGGGGX.......',
+    '...XXXXXGGGGKKKKKKKKGHGGXXXXX...',
+    '..XGGGGXGkkkWKKGGKKWGHGGXGGGGX..',
+    '..XHGGGXGGGGWKKGGKKWGHGGXGGGHX..',
+    '..XHGGGXGkkGGGGGGGGGGHGGXGGGHX..',
+    '..XGGGGXGGGGGGMMMMGGGHGGXGGGGX..',
+    '..XSSSSXGkkkGGGGGGGGGHGGXSSSSX..',
+    '.XGGGGGXGGGGGGGGGGGGGHGGXGGGGGX.',
+    '.XHGGGGXGllllllllllllHlGXGGGGHX.',
+    '.XHGGGGXGLLLLLLLLLLLLHLGXGGGGHX.',
+    '.XGGGGGXGkkkLLLbLLLLLHLGXGGGGGX.',
+    '..XXGXXXGLLLLLLLLLLLbHLGXXXGXX..',
+    '.XGHGGGXGkkLbLLLLLLLLHLGXGGGHGX.',
+    '.XGGGGGXGLLLLLLLLLLLLHLGXGGGGGX.',
+    'XGGLLLGGGkkkLLLLLLbLLHLGGGLLLGGX',
+    '.XLLLLLXGLLbLLLLLLLLLHLGXLLLLLX.',
+    '.XGLLLGXGkkLLLLLbLLLLHLGXGLLLGX.',
+    '..XXGXXXGLLLLLLLLLLLLLLGXXXGXX..',
+    '....X..XGGGGGGGGGGGGGGGGX..X....',
+    '........XGGGGGGXXGGGGGGX........',
+    '........XGGGGGGXXGGGGGGX........',
+    '........XGLLLLGXXGLLLLGX........',
+    '........XGLLLLGXXGLLLLGX........',
+    '.......XSSSSSSSSSSSSSSSSX.......',
+    '.......XSSSSSSSSSSSSSSSSX.......',
+    '........XXXXXXXXXXXXXXXX........'],
+  king: [
+    '............X.XYYXXYX...........',
+    '...........XYXYYYYYYX.....XXXX..',
+    '..........XYYYYYYYYYYX...XBBBBX.',
+    '..........XYYYYgggYYYYX..XWBBBX.',
+    '..........XYYYYYYYYYYYX.XBBBBBBX',
+    '..........XhhhOOOOOOOOX..XBBBBX.',
+    '.........XOhhhOOOOOOOOOX.XBBBBX.',
+    '.........XOKKOOOOOOOKKOX..XYyX..',
+    '.........XOOOOOOOOOOOOOX..XYyX..',
+    '........XdddOOoooooOOdddX.XYyX..',
+    '......XXXXOdddoWPPodddOXXXXYyX..',
+    '.....XRRRdddddPPPPPdddddRRXYyX..',
+    '.....XRRRRROOOoPPPoOOORRRRXYyX..',
+    '....XRRRRRRROOOOOOOOORRRRRXYyX..',
+    '....XRRRRRWWWWWWWWWWWWWRRRRYyX..',
+    '....XRRWWKWWWWWWKWWWWWWKWWRYyX..',
+    '....XRrWWWWWKWWWWWWWKWWWWWrYyX..',
+    '....XppppWWWWWWWWWWWWWWWppppyX..',
+    '...XppppppOOOOoooooOOOOppppppX..',
+    '...XppppppOOOoooooooOOOppppppX..',
+    '..XppppppppOoooooooooOppppppppX.',
+    '...XppppppOOoooooooooOOppppppX..',
+    '...XppppppOOoooooooooOOppppppX..',
+    '..XWRppppWOoooooooooooWOppppWX..',
+    '..XRRWRWOOOOoooooooooOOOWRWYyX..',
+    '..XRRrRROOOOoooooooooOOOORRYyX..',
+    '..XRRrRRROOOoooooooooOOORRRrRX..',
+    '..XRRrRRRROOOoooooooOOORRRRrRX..',
+    '.XRRRrRRRRrpOOoooooOOprRRRRrRX..',
+    '.XRRRrRRRpppppOOoOOpppppRRRrRRX.',
+    '.XRRRrRRRpppppRRORRpppppRRRrRRX.',
+    '..XXXXXXXXXpXXXXXXXXXpXXXXXXXX..'],
+  dragon: [
+    '.....XYYX..............XYYX.....',
+    '......XYYX............XYYX......',
+    '......XYYYX...XXXXX..XYYYX......',
+    '.X.....XYYYXXXOOOOOXXYYYX.....X.',
+    'XDXX...XYYXXOOOOOOOOOYYYX...XXDX',
+    'XDDDXX..XXXhhhhOOOOOOOYX..XXDDDX',
+    'XDdDDDX..XddddhOOOOddddX.XDDDDdX',
+    'XDddDDDXXXOWWKOOOOOKWWOXXDDDDddX',
+    'XDddDDDDDXOWWKOOOOOKWWODDDDDDddX',
+    'XDdddDDDDDOOOOOOOOOOOOODDDDDdddX',
+    'XDdddDDDDDOOOOOOoOOOOOODDDDDdddX',
+    'DDddDdDDDDOOOoKoooKoOOODDDDdDddD',
+    'DdddDDdDDDDOoooooooooODDDDdDDddd',
+    'DdDddDDdDDDDoooooooooDDDDdDDddDd',
+    'DdDDdDDdDDDDOMMMMMMMODDDDdDDdDDd',
+    'DdDDdDDDdDDOOOWOoOWOOODDdDDDdDDd',
+    'DdDDdDDDdDOOOOEEEEEOOOODdDDDdDDd',
+    'DdXXdDDDDOOOOEAAAAAEOOOODDDDdXDd',
+    'XX..XdDDXOOOEAAAAAAAEOOODDDdX.XX',
+    '....XdDXXOOOEAAAAAAAEOOODDDdXXDX',
+    '....XdX.XOOEAAAANAAAAEOdXDXdDDDX',
+    '.....X..XOOEAAAnNNAAAEOdXX.XDDdX',
+    '........XOOEAANnNNNAAEOdX..XODdX',
+    '........XOOEAANNNNNAAEOdX..XOOdX',
+    '........XOOOEAANNNAAEOOdXX.XOOdX',
+    '.........XOOEAAANAAAEOOOOdXOOOdX',
+    '........XOOOOEAAAAAEOOOOOOOOOdX.',
+    '.......XOOOOOOEEEEEOOOOOOOOOOdX.',
+    '.......XOOOOOOOOOOOOOOOOOOOdXX..',
+    '........XOOOdXXXXXXXOOOdXXXX....',
+    '.......XWXWXWX....XWXWXWX.......',
+    '........X.X.X......X.X.X........'],
+};
+const BASE_PAL = { X: '#1a1030', W: '#ffffff', K: '#111111', M: '#3a0d1f', Y: '#ffd34d', R: '#e5384f', G: '#d7eef5', S: '#c8d0dc' };
+// the first nine come in order of strength; the last one is always the final boss
+const MONSTERS = [
+  { id: 'slime', name: 'モルスライム', sprite: 'slime', pal: { O: '#4cc38a', H: '#a8f0c8', D: '#2e8a5e', P: '#e86a8a' }, hp: 30, atk: 24,
+    intro: 'ぷるぷる ふるえている。', verb: 'たいあたり してきた', desc: 'いちばん よわい スライム。1 mol ずつ なかまを ふやすらしい。' },
+  { id: 'cavy', name: 'モルモット', sprite: 'cavy', pal: { O: '#fbf3e6', B: '#b07a45', P: '#f4a3b4', H: '#ffffff', d: '#c9b8a0' }, hp: 35, atk: 24,
+    intro: 'はなを ひくひく させている。', verb: 'かじりついて きた', desc: '「モル」の ひびきが すきで あつまってきた。けんきゅうしつの にんきもの。' },
+  { id: 'flask', name: 'フラスコン', sprite: 'flask', pal: { L: '#6b8cff', l: '#9db2ff', b: '#c3d0ff', H: '#ffffff', S: '#aab6c4' }, hp: 40, atk: 26,
+    intro: 'なかの えきたいが ゆらゆら ゆれている。', verb: 'えきたいを かけて きた', desc: 'まるい フラスコに すみつく。なかみは なぞの すいようえき。' },
+  { id: 'pet', name: 'P.E.T', sprite: 'pet', pal: { G: '#bfe8f5', H: '#ffffff', L: '#3f7fd8', r: '#b3203a' }, hp: 45, atk: 27,
+    intro: 'サングラスを くいっと あげた。', verb: 'キャップを とばして きた', desc: 'ポリエチレンテレフタラートで できた ペットボトル。サングラスは じぶんで えらんだ。' },
+  { id: 'ghost', name: 'ガスゴースト', sprite: 'ghost', pal: { O: '#c9b8f5', D: '#a996e0', H: '#f4efff', P: '#f4a3c4' }, hp: 50, atk: 28,
+    intro: 'ふわふわ ただよっている。', verb: 'つめたい いきを ふきかけた', desc: 'ひょうじゅんじょうたいで 1 mol あたり 22.4 L に ふくらむ おばけ。' },
+  { id: 'knight', name: 'シリンダーナイト', sprite: 'knight', pal: { L: '#59c9a5', l: '#9be6cb', H: '#ffffff', B: '#3355aa', k: '#6b8aa0', s: '#9aa6b6', d: '#6b4a3a' }, hp: 55, atk: 29,
+    intro: 'めもりを ぴしっと あわせた。', verb: 'たてで なぐりかかって きた', desc: 'メスシリンダーの きし。めもりは えきめんの くぼんだ ところ（メニスカス）の したで よむ。' },
+  { id: 'bat', name: 'イオンバット', sprite: 'bat', pal: { O: '#7a4fb3', o: '#9b74cf', P: '#e5484d', p: '#a83236', Q: '#3d7be0', q: '#2a5aa8', M: '#2a0d1f', d: '#3a2650' }, hp: 60, atk: 30,
+    intro: 'はねが パチパチと ひかった！', verb: 'でんきを おびた はねで うった', desc: 'プラスと マイナスの はねで バランスを とって とぶ。でんかの ごうけいは いつも 0。' },
+  { id: 'golem', name: 'ビーカーゴーレム', sprite: 'golem', pal: { G: '#d7eef5', H: '#ffffff', L: '#f08a3c', l: '#ffc08a', b: '#ffd8b0', k: '#6b8aa0', S: '#aab6c4' }, hp: 75, atk: 34,
+    intro: 'からだが ガラガラと くみあがった！', verb: 'ガラスの うでを ふりおろした', desc: 'ビーカーが くみあがった きょじん。ビーカーの めもりは めやすで、せいかくな はかりかたには むかない。' },
+  { id: 'king', name: 'キング・モル', sprite: 'king', pal: { O: '#6b4a3a', o: '#9a7360', h: '#8d6a58', d: '#3a2620', P: '#f48fb1', p: '#f7b0c6', R: '#7b2d8e', r: '#5a1f69', B: '#4fc3f7', y: '#c9a227', g: '#e5384f' }, hp: 85, atk: 36,
+    intro: 'マントを ばさっと ひるがえした！', verb: 'するどい ツメで ほりかかって きた', desc: 'モグラの おうさま。えいごで モグラも「mole（モル）」という。アボガドラゴンの つぎに つよい。' },
+  { id: 'dragon', name: 'アボガドラゴン', sprite: 'dragon', pal: { O: '#4f9d3a', o: '#7cc35a', D: '#2f6b22', d: '#24541a', h: '#9fdc7e', A: '#d9e88a', E: '#3d7a2a', N: '#7a4a22', n: '#a8743f', Y: '#f3e2a0' }, hp: 100, atk: 38, boss: true,
+    intro: '6.0×10²³ の ちからを ひめている…！', verb: 'ほのおを はいた', desc: 'たねに 6.0×10²³ の ちからを ひめた りゅう。この ぼうけんの ラスボス。' },
+];
+function drawSprite(canvas, m, silhouette) {
+  const size = SPRITES[m.sprite].length;
+  if (canvas.width !== size) { canvas.width = size; canvas.height = size; }
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+  const pal = { ...BASE_PAL, ...m.pal };
+  SPRITES[m.sprite].forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      const c = pal[row[x]];
+      if (c) { ctx.fillStyle = silhouette ? '#2c3270' : c; ctx.fillRect(x, y, 1, 1); }
+    }
+  });
+}
+// order of enemies for one adventure: random picks from the first nine (weakest first), then the final boss
+function makeLineup(total) {
+  if (total >= MONSTERS.length) return MONSTERS.map((_, i) => i);
+  const pool = MONSTERS.slice(0, -1).map((_, i) => i);
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  return [...pool.slice(0, total - 1).sort((a, b) => a - b), MONSTERS.length - 1];
+}
+function monsterStats(idx, total) {
+  const m = MONSTERS[idx];
+  if (!m.boss) return { ...m, max: m.hp };
+  return { ...m, max: m.hp + 10 * Math.floor((total - 1) / 2), atk: m.atk + Math.floor((total - 1) / 3) * 2 };
+}
+
+// ---------- monster book ----------
+const zukanGet = () => store.get('molq.zukan', {});
+function renderZukan() {
+  const z = zukanGet();
+  const got = MONSTERS.filter(m => z[m.id]).length;
+  $('zk-count').textContent = `${got} / ${MONSTERS.length}`;
+  $('btn-zukan').textContent = `モンスターずかん（${got} / ${MONSTERS.length}）`;
+  const grid = $('zk-grid');
+  grid.innerHTML = MONSTERS.map((m, i) => {
+    const n = z[m.id] || 0;
+    return `<div class="zk${n ? '' : ' unknown'}">
+      <canvas width="16" height="16" aria-hidden="true"></canvas>
+      <div class="zk-no">No.${String(i + 1).padStart(2, '0')}${m.boss ? '　ラスボス' : ''}</div>
+      <div class="zk-name">${n ? m.name : '？？？'}</div>
+      ${n ? `<div class="zk-stat">HP ${m.boss ? m.hp + '〜' : m.hp}　こうげき ${m.atk}${m.boss ? '〜' : ''}</div>
+      <p class="zk-desc">${m.desc}</p><div class="zk-kills">たおした かず：${n}</div>` : '<p class="zk-desc">まだ たおしていない。</p>'}
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('canvas').forEach((c, i) => drawSprite(c, MONSTERS[i], !z[MONSTERS[i].id]));
+}
+
+// ---------- hero level ----------
+const levelOf = exp => Math.floor(Math.sqrt(exp / 40)) + 1;
+const expFor = lv => 40 * (lv - 1) ** 2;
+function renderHero() {
+  const exp = store.get('molq.exp', 0), lv = levelOf(exp);
+  $('h-lv').textContent = `ゆうしゃ Lv.${lv}`;
+  const lo = expFor(lv), hi = expFor(lv + 1);
+  $('h-exp').style.width = Math.round((exp - lo) / (hi - lo) * 100) + '%';
+  $('h-exptext').textContent = `EXP ${exp}（つぎの レベルまで あと ${hi - exp}）`;
+  // once the final boss is beaten it stays on the title screen; before that, a random monster the hero
+  // has already defeated, or モルスライム until there is one
+  const z = zukanGet();
+  const boss = MONSTERS.find(m => m.boss);
+  const beaten = MONSTERS.filter(m => !m.boss && z[m.id]);
+  drawSprite($('hero-sprite'), z[boss.id] ? boss : beaten.length ? pick(beaten) : MONSTERS[0]);
+  renderZukan();
+}
+
+// ---------- message window ----------
+let typeTimer = null, typeFull = '';
+function say(lines) {
+  typeFull = lines.join('\n');
+  clearInterval(typeTimer);
+  const el = $('msg');
+  if (reduceMotion.matches) { el.textContent = typeFull; el.scrollTop = el.scrollHeight; return; }
+  let i = 0;
+  el.textContent = '';
+  typeTimer = setInterval(() => {
+    i += 1;
+    el.textContent = typeFull.slice(0, i);
+    el.scrollTop = el.scrollHeight;  // keep the newest line in view when the window is short (phones)
+    if (i >= typeFull.length) { clearInterval(typeTimer); }
+  }, 22);
+}
+$('msg').addEventListener('click', () => { clearInterval(typeTimer); $('msg').textContent = typeFull; $('msg').scrollTop = $('msg').scrollHeight; });
+
+function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+function popup(text, cls) {
+  if (reduceMotion.matches) return;
+  const s = document.createElement('span');
+  s.className = 'pop ' + (cls || '');
+  s.textContent = text;
+  $('pops').appendChild(s);
+  setTimeout(() => s.remove(), 1200);
+}
+function hpClass(el, ratio) {
+  el.style.width = Math.max(0, ratio * 100) + '%';
+  el.classList.toggle('mid', ratio <= .5 && ratio > .25);
+  el.classList.toggle('low', ratio <= .25);
+}
+
+// ---------- game state ----------
+let settings = store.get('molq.settings2', { from: 'any', to: 'any', count: 3 });
+let set = null;
+let cur = null, answered = false;
+
+function show(id) {
+  ['home', 'battle', 'summary', 'zukan'].forEach(x => $(x).hidden = x !== id);
+  $('wrap').dataset.screen = id;
+  if (id !== 'battle') setMap(null);
+}
+function readSettings() {
+  settings = { from: $('sel-from').value, to: $('sel-to').value, count: +document.querySelector('input[name="count"]:checked').value };
+  store.set('molq.settings2', settings);
+}
+function renderHome() {
+  $('sel-from').value = settings.from;
+  $('sel-to').value = settings.to;
+  const r = document.querySelector(`input[name="count"][value="${settings.count}"]`);
+  if (r) r.checked = true;
+  updateComboNote();
+  renderHero();
+  const last = store.get('molq.last', null);
+  if (last) {
+    $('last').textContent = last.target
+      ? `ぜんかいの ぼうけん：${last.label}・${last.target}体の ぼうけんで ${last.kills}体 たおした（${last.n}問中 ${last.ok}問正解）`
+      : `ぜんかいの ぼうけん：${last.label}・${last.count}問で ${last.ok}問正解、モンスターを ${last.kills}体 たおした`;
+    $('last').hidden = false;
+  }
+}
+function updateComboNote() {
+  readSettings();
+  const c = combos(settings.from, settings.to);
+  const note = $('combo-note');
+  if (!c.length) {
+    note.textContent = '同じ量どうしは選べません。どちらかを変えてください。';
+    note.className = 'note err';
+    $('btn-start').disabled = true;
+  } else {
+    note.textContent = c.length === 1 ? `「${c[0].label}」の問題が出ます。` : `${c.length} 通りの組み合わせからランダムに出題します。`;
+    note.className = 'note';
+    $('btn-start').disabled = false;
+  }
+}
+
+function spawn(i) {
+  set.enemyIdx = i;
+  const m = monsterStats(set.lineup[i], set.target);
+  set.enemy = { ...m, hp: m.max };
+  drawSprite($('e-sprite'), m);
+  $('stage').className = 'stage';
+  replay($('stage'), 'appear');
+  renderEnemy();
+}
+function renderEnemy() {
+  const e = set.enemy;
+  $('e-name').textContent = e.name;
+  $('e-hpt').textContent = `${Math.max(0, e.hp)}/${e.max}`;
+  hpClass($('e-hp'), e.hp / e.max);
+}
+function renderPlayer() {
+  $('p-lv').textContent = `Lv.${set.level}`;
+  $('p-hpt').textContent = `${Math.max(0, set.php)}/${set.pmax}`;
+  hpClass($('p-hp'), set.php / set.pmax);
+  $('p-kills').textContent = `${set.kills}/${set.target}`;
+  $('p-combo').textContent = set.streak;
+  const exp = store.get('molq.exp', 0), lo = expFor(set.level), hi = expFor(set.level + 1);
+  $('p-exp').style.width = Math.min(100, Math.round((exp - lo) / (hi - lo) * 100)) + '%';
+  $('p-expt').textContent = `つぎまで ${Math.max(0, hi - exp)}`;
+}
+
+// experience is saved as soon as it is earned, so the hero can level up mid-battle
+const hpForLevel = lv => 100 + 5 * (lv - 1);
+function gainExp(n, lines) {
+  const after = store.get('molq.exp', 0) + n;
+  store.set('molq.exp', after);
+  set.exp += n;
+  const lv = levelOf(after);
+  if (lv <= set.level) return;
+  const diff = lv - set.level;
+  set.level = lv;
+  set.pmax = hpForLevel(lv);
+  set.php = Math.min(set.pmax, set.php + 5 * diff + 10);
+  lines.push(`ゆうしゃの レベルが ${lv} に あがった！`);
+  lines.push(`こうげきりょくが ${diff}、さいだいHPが ${5 * diff} あがった。HPも すこし かいふくした！`);
+  setTimeout(() => {
+    popup('LEVEL UP!', 'lvup');
+    if (!reduceMotion.matches) replay($('status'), 'lvflash');
+    FX.fireworks(1);
+  }, 1100);
+}
+
+function startSet() {
+  readSettings();
+  const c = combos(settings.from, settings.to);
+  if (!c.length) return;
+  const level = levelOf(store.get('molq.exp', 0));
+  set = { combos: c, target: settings.count, lineup: makeLineup(settings.count), results: [], level, startLevel: level, php: hpForLevel(level), pmax: hpForLevel(level), streak: 0, kills: 0, exp: 0, over: false };
+  cur = null;
+  show('battle');
+  spawn(0);
+  renderPlayer();
+  next(true);
+}
+
+function setMap(p) {
+  document.querySelectorAll('.node.on, .edge span.on').forEach(e => e.classList.remove('on'));
+  if (!p) return;
+  const { from, to } = p.type;
+  const t = to === 'A' ? 'N' : to;
+  new Set([from, 'n', t]).forEach(k => document.querySelector(`.node[data-k="${k}"]`).classList.add('on'));
+  if (from !== 'n') document.querySelector(`[data-e="${from}-in"]`).classList.add('on');
+  if (t !== 'n') document.querySelector(`[data-e="${t}-out"]`).classList.add('on');
+}
+
+function next(first) {
+  let lines;
+  if (first) lines = [`${set.enemy.name}が あらわれた！`, `${set.enemy.name}は ${set.enemy.intro}`, 'もんだいに せいかいして こうげきしよう！'];
+  else if (set.enemy.hp <= 0) {
+    spawn(set.enemyIdx + 1);
+    lines = [`${set.enemy.name}が あらわれた！`, `${set.enemy.name}は ${set.enemy.intro}`];
+    if (set.enemy.boss && set.target > 1) lines.unshift('…ただならぬ けはいが する！');
+  }
+  else lines = [pick([`${set.enemy.name}は こちらの ようすを うかがっている。`, `${set.enemy.name}が みがまえている！`, `${set.enemy.name}は ぶきみに わらっている…`])];
+  let t, tries = 0;
+  do { t = pick(set.combos); tries++; } while (cur && set.combos.length > 1 && t.label === cur.type.label && tries < 4);
+  cur = makeProblem(t);
+  cur.hinted = false;
+  answered = false;
+  expr = '';
+  $('q-tag').textContent = t.label;
+  $('q-no').textContent = `ターン ${set.results.length + 1}・のこり ${set.target - set.kills}体`;
+  $('t-mm').textContent = cur.s.M;
+  $('t-fm').innerHTML = cur.s.f;
+  $('t-fm').classList.toggle('long', cur.s.f.replace(/<[^>]+>/g, '').length > 5);
+  $('t-nm').textContent = cur.s.n;
+  $('q-text').innerHTML = cur.text;
+  $('ans-unit').textContent = UNIT[t.to];
+  $('hint').hidden = true;
+  $('result').hidden = true;
+  $('screen').classList.remove('dis');
+  document.querySelectorAll('.key').forEach(b => b.disabled = false);
+  $('btn-check').innerHTML = 'こうげき！<span class="long">（答え合わせ）</span>';
+  $('btn-hint').disabled = false;
+  $('btn-skip').disabled = false;
+  setMap(null);
+  renderCalc();
+  say(lines);
+  if (narrow() && !first) $('field').scrollIntoView({ block: 'start' });
+}
+
+function heroAttack(lines) {
+  const e = set.enemy;
+  set.streak++;
+  const combo = Math.min((set.streak - 1) * 3, 9);
+  const crit = Math.random() < 0.15;
+  let dmg = 10 + (set.level - 1) + combo + Math.floor(Math.random() * 3);
+  if (crit) dmg *= 2;
+  if (cur.hinted) dmg = Math.ceil(dmg / 2);
+  e.hp -= dmg;
+  lines.push('ゆうしゃの こうげき！');
+  if (crit) lines.push('かいしんの いちげき！！');
+  lines.push(`${e.name}に ${dmg} の ダメージ！`);
+  const sl = $('slash');
+  sl.classList.toggle('crit', crit);
+  replay(sl, 'go');
+  setTimeout(() => { replay($('stage'), 'hit'); popup(String(dmg), crit ? 'crit' : ''); }, 160);
+  if (e.hp <= 0) {
+    set.kills++;
+    set.killExp = e.max;
+    const z = zukanGet();
+    lines.push(`${e.name}を たおした！ ${e.max} の けいけんちを かくとく。`);
+    if (!z[e.id]) lines.push(`${e.name}の データが モンスターずかんに とうろくされた！`);
+    z[e.id] = (z[e.id] || 0) + 1;
+    store.set('molq.zukan', z);
+    setTimeout(() => { replay($('stage'), 'dead'); FX.cracker(); }, 650);
+  }
+  if (set.streak % 3 === 0 && set.php < set.pmax) {
+    const heal = Math.min(20, set.pmax - set.php);
+    set.php += heal;
+    lines.push(`${set.streak}れんぞく せいかい！ HPが ${heal} かいふくした。`);
+    setTimeout(() => popup('+' + heal + ' HP', 'heal'), 900);
+  }
+  // 5 EXP for every correct answer, plus the enemy's EXP when it falls
+  gainExp(5 + (set.killExp || 0), lines);
+  set.killExp = 0;
+  renderEnemy();
+}
+
+function enemyAttack(lines, guarded) {
+  const e = set.enemy;
+  set.streak = 0;
+  let dmg = e.atk + Math.floor(Math.random() * 7);
+  if (guarded) dmg = Math.ceil(dmg / 2);
+  set.php -= dmg;
+  lines.push(guarded ? 'ゆうしゃは みを まもっている。' : 'ゆうしゃの こうげき！ しかし こうげきは はずれた！');
+  lines.push(`${e.name}は ${e.verb}！ ゆうしゃは ${dmg} の ダメージを うけた！`);
+  if (!guarded) popup('MISS', 'miss');
+  setTimeout(() => {
+    replay($('stage'), 'attack');
+    setTimeout(() => {
+      if (!reduceMotion.matches) { replay($('redflash'), 'go'); replay($('status'), 'hurt'); }
+    }, 220);
+  }, 200);
+  if (set.php <= 0) { set.php = 0; set.over = true; lines.push('ゆうしゃは ちからつきた…'); }
+}
+
+function finish(user, skipped) {
+  answered = true;
+  const ok = !skipped && isCorrect(user, cur.ans);
+  set.results.push({ ok, text: cur.text, ans: `${fmtQty(cur.type.to, cur.ans)} ${UNIT[cur.type.to]}`,
+    user: skipped || user === null ? '―' : `${fmtAny(user)} ${UNIT[cur.type.to]}` });
+
+  const lines = [];
+  if (ok) heroAttack(lines); else enemyAttack(lines, skipped);
+  renderPlayer();
+  say(lines);
+
+  const ansHtml = `${fmtQty(cur.type.to, cur.ans)} ${UNIT[cur.type.to]}`;
+  const r = $('result');
+  r.className = 'result ' + (ok ? 'ok' : 'ng');
+  const head = ok ? 'せいかい！' : skipped ? 'かいとう' : 'ざんねん…';
+  const yours = (!ok && !skipped) ? `<div>あなたの答え：<span class="ansline">${fmtAny(user)} ${UNIT[cur.type.to]}</span></div>` : '';
+  r.innerHTML = `<h3>${head}　<span class="ansline">${ansHtml}</span></h3>${yours}${routeHtml(cur.type)}
+    <ol class="steps">${cur.steps.map(s => `<li><span class="f">${s}</span></li>`).join('')}</ol>`;
+  r.hidden = false;
+  $('hint').hidden = true;
+  $('screen').classList.add('dis');
+  document.querySelectorAll('.key').forEach(b => b.disabled = true);
+  const end = set.over || set.kills >= set.target;
+  $('btn-check').textContent = end ? 'けっかを みる' : 'つぎの ターンへ';
+  $('btn-hint').disabled = true;
+  $('btn-skip').disabled = true;
+  setMap(cur);
+  renderCalc();
+  $('btn-check').focus({ preventScroll: true });
+  if (narrow()) $('field').scrollIntoView({ block: 'start', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+}
+
+function check() {
+  if (answered) {
+    if (set.over || set.kills >= set.target) showSummary(); else next(false);
+    return;
+  }
+  const u = evaluate(expr);
+  if (u === null) {
+    $('hint').textContent = expr ? '式が途中です。かっこや ×10ⁿ の指数を確かめてください。' : '電卓で答えを入力してください。計算式のままでも答え合わせできます（例：11÷44）。';
+    $('hint').hidden = false;
+    return;
+  }
+  finish(u, false);
+}
+
+function showSummary() {
+  const ok = set.results.filter(r => r.ok).length;
+  const n = set.results.length;
+  const lvB = set.startLevel, lvA = set.level;
+  const t = $('sum-title');
+  if (set.over) { t.textContent = 'ぜんめつ… もういちど ちょうせんしよう'; t.className = 'sum-title lose-t'; }
+  else { t.textContent = `クエスト クリア！ ${set.target}体 すべて たおした`; t.className = 'sum-title win-t'; }
+  $('sum-score').textContent = `${ok} / ${n}`;
+  $('sum-kills').textContent = `${set.kills} / ${set.target} 体`;
+  $('sum-exp').textContent = set.exp;
+  $('sum-lvup').hidden = lvA <= lvB;
+  $('sum-lvup').textContent = `この ぼうけんで レベルが ${lvB} → ${lvA} に あがった！`;
+  $('review').innerHTML = set.results.map((r, i) => `<li>
+      <span class="mk ${r.ok ? 'ok' : 'ng'}" aria-label="${r.ok ? '正解' : '不正解'}">${r.ok ? '○' : '×'}</span>
+      <span class="qt">${i + 1}. ${r.text}</span>
+      <span class="qa">正解 <b>${r.ans}</b>　あなたの答え <b>${r.user}</b></span>
+    </li>`).join('');
+  const label = set.combos.length === 1 ? set.combos[0].label
+    : `${settings.from === 'any' ? 'ランダム' : QN[settings.from]} → ${settings.to === 'any' ? 'ランダム' : QN[settings.to]}`;
+  store.set('molq.last', { label, target: set.target, n, ok, kills: set.kills });
+  show('summary');
+  $('summary').scrollIntoView({ block: 'start' });
+  if (!set.over) { FX.cracker(); FX.fireworks(ok === n ? 6 : 3); }
+}
+
+// ---------- events ----------
+$('sel-from').onchange = updateComboNote;
+$('sel-to').onchange = updateComboNote;
+document.querySelectorAll('input[name="count"]').forEach(r => r.onchange = readSettings);
+$('btn-start').onclick = startSet;
+$('btn-again').onclick = startSet;
+$('btn-home').onclick = () => { renderHome(); show('home'); };
+$('btn-zukan').onclick = () => { renderZukan(); show('zukan'); $('zukan').scrollIntoView({ block: 'start' }); };
+$('btn-reset').onclick = () => {
+  const lv = levelOf(store.get('molq.exp', 0));
+  const z = zukanGet(), got = MONSTERS.filter(m => z[m.id]).length;
+  $('reset-text').textContent = `ほんとうに リセットしますか？ いまの レベル（Lv.${lv}）と モンスターずかん（${got} / ${MONSTERS.length}）の きろくが きえて、もとに もどせません。`;
+  $('reset-confirm').hidden = false;
+  $('reset-done').hidden = true;
+  $('btn-reset-no').focus();
+};
+$('btn-reset-no').onclick = () => { $('reset-confirm').hidden = true; };
+$('btn-reset-yes').onclick = () => {
+  try { localStorage.removeItem('molq.exp'); localStorage.removeItem('molq.zukan'); } catch (e) { }
+  $('reset-confirm').hidden = true;
+  renderHome();
+  $('reset-done').hidden = false;
+};
+$('btn-zk-back').onclick = () => { renderHome(); show('home'); };
+$('btn-quit').onclick = () => { renderHome(); show('home'); };
+$('keys').addEventListener('click', e => { const b = e.target.closest('.key'); if (b) press(b.dataset.k); });
+$('btn-check').onclick = check;
+$('btn-skip').onclick = () => { if (!answered) finish(null, true); };
+$('btn-hint').onclick = () => {
+  if (!cur.hinted) { cur.hinted = true; say(['ヒントを みた！', 'この ターンの こうげきりょくが はんぶんに なった。']); }
+  $('hint').innerHTML = routeHtml(cur.type) + `<div>${cur.hint}</div>`;
+  $('hint').hidden = false; setMap(cur);
+  if (narrow()) $('hint').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+};
+document.addEventListener('keydown', e => {
+  if ($('battle').hidden || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
+  const tag = e.target.tagName;
+  if (tag === 'SELECT' || tag === 'INPUT') return;
+  const map = { 'Backspace': 'BS', 'Delete': 'C', 'Escape': 'C', 'x': '*', 'X': '*', '×': '*', '÷': '/', 'e': 'E', 'E': 'E', '^': 'E', 'a': 'NA', 'A': 'NA', 'v': 'VM', 'V': 'VM' };
+  if (e.key === 'Enter') {
+    if (tag === 'BUTTON' && e.target !== $('btn-check')) return;
+    e.preventDefault(); check(); return;
+  }
+  const k = map[e.key] || (/^[\d.+\-*/()]$/.test(e.key) ? e.key : null);
+  if (k) { e.preventDefault(); press(k); }
+});
+
+$('consts').innerHTML = Object.entries(AM).map(([e, w]) => `<div class="el"><b>${e}</b><span>${e === 'H' ? '1.0' : w}</span></div>`).join('');
+renderHome();
+show('home');
+</script>
+</body>
+</html>

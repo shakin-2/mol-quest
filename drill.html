@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>モル計算ドリル</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: graph-paper lab notebook — left column swaps top page / quiz / results, the "mol map" and constants sit beside it */
+:root {
+  --bg: #eef3f4;
+  --grid: #dbe6e8;
+  --paper: #ffffff;
+  --fg: #172428;
+  --muted: #5a6e73;
+  --line: #c9d7da;
+  --key: #f2f6f7;
+  --key-op: #e2ecee;
+  --accent: #0a6c80;
+  --accent-soft: #d8edf1;
+  --accent-fg: #ffffff;
+  --good: #1d7a45;
+  --good-soft: #e0f2e7;
+  --bad: #b33a24;
+  --bad-soft: #f8e3de;
+  --f-display: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1719; --grid: #172226; --paper: #162125; --fg: #e3eef0; --muted: #93a8ad;
+    --line: #2a3a3f; --key: #1d2b30; --key-op: #24363c; --accent: #4fc0d6; --accent-soft: #163a42; --accent-fg: #06181c;
+    --good: #5fd08e; --good-soft: #143224; --bad: #f08a72; --bad-soft: #3a1d17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1719; --grid: #172226; --paper: #162125; --fg: #e3eef0; --muted: #93a8ad;
+  --line: #2a3a3f; --key: #1d2b30; --key-op: #24363c; --accent: #4fc0d6; --accent-soft: #163a42; --accent-fg: #06181c;
+  --good: #5fd08e; --good-soft: #143224; --bad: #f08a72; --bad-soft: #3a1d17;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--fg);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.wrap {
+  max-width: 1040px; margin: 0 auto;
+  padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 20px;
+}
+header { display: grid; gap: 4px; }
+h1 { font-family: var(--f-display); font-weight: 900; font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.2; margin: 0; letter-spacing: .02em; text-wrap: balance; }
+h1 .unit { font-family: var(--f-num); font-weight: 600; color: var(--accent); font-size: .7em; margin-left: .3em; }
+.lede { margin: 0; color: var(--muted); font-size: .92rem; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 18px; min-width: 0; }
+.card h2 { margin: 0; font-size: 1.15rem; font-weight: 900; }
+sub, sup { font-size: .7em; line-height: 0; }
+
+/* ---- top page ---- */
+.field { display: grid; gap: 6px; }
+.field > label, .field > .lbl { font-size: .78rem; letter-spacing: .1em; color: var(--muted); font-weight: 700; }
+.conv { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.conv .arrow { font-family: var(--f-num); font-size: 1.3rem; color: var(--accent); }
+select {
+  font: inherit; font-size: max(16px, 1.05rem); font-weight: 700; color: var(--fg);
+  background: var(--bg); border: 1.5px solid var(--line); border-radius: 8px;
+  padding: 8px 36px 8px 12px; min-width: 9.5em; max-width: 100%;
+  appearance: none; -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 55%, calc(100% - 12px) 55%;
+  background-size: 6px 6px; background-repeat: no-repeat;
+  cursor: pointer;
+}
+.seg { display: inline-flex; border: 1.5px solid var(--accent); border-radius: 8px; overflow: hidden; width: fit-content; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { padding: 8px 20px; cursor: pointer; font-weight: 700; font-family: var(--f-num); color: var(--accent); }
+.seg input:not(:first-child) + label { border-left: 1.5px solid var(--accent); }
+.seg input:checked + label { background: var(--accent); color: var(--accent-fg); }
+.seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: -4px; }
+.combo-note { margin: 0; font-size: .85rem; color: var(--muted); }
+.combo-note.err { color: var(--bad); font-weight: 700; }
+.last { font-size: .85rem; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 12px; margin: 0; }
+.last b { font-family: var(--f-num); color: var(--fg); }
+
+/* ---- quiz ---- */
+.qhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); }
+.qhead .tag { color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: 1px 8px; font-weight: 700; letter-spacing: .04em; }
+.prog { display: flex; align-items: center; gap: 8px; font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+.dots { display: flex; gap: 3px; flex-wrap: wrap; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.dots i.cur { background: var(--accent); }
+.dots i.ok { background: var(--good); }
+.dots i.ng { background: var(--bad); }
+.qbody { display: flex; gap: 18px; align-items: flex-start; }
+.tile {
+  flex: none; width: 104px; aspect-ratio: 1; max-width: 100%;
+  border: 2px solid var(--fg); border-radius: 6px; padding: 6px 8px;
+  display: grid; grid-template-rows: auto 1fr auto; text-align: center;
+}
+.tile .mm { font-family: var(--f-num); font-size: .72rem; text-align: left; color: var(--muted); }
+.tile .fm { font-family: var(--f-num); font-weight: 600; font-size: 1.35rem; align-self: center; line-height: 1.1; word-break: break-all; }
+.tile .fm.long { font-size: 1rem; }
+.tile .nm { font-size: .7rem; color: var(--muted); line-height: 1.3; }
+.qtext { font-size: 1.12rem; line-height: 1.9; margin: 0; min-width: 0; }
+.qtext .v { font-family: var(--f-num); font-weight: 600; background: var(--accent-soft); padding: 0 4px; border-radius: 3px; white-space: nowrap; }
+
+.calc { display: grid; gap: 10px; max-width: 380px; width: 100%; }
+.screen {
+  border: 1.5px solid var(--line); border-radius: 10px; background: var(--bg);
+  padding: 10px 12px; display: grid; gap: 2px; min-height: 84px;
+}
+.screen.dis { opacity: .7; }
+.expr { font-family: var(--f-num); font-size: 1.25rem; text-align: right; overflow-wrap: anywhere; min-height: 1.6em; line-height: 1.5; }
+.expr .caret { display: inline-block; width: 2px; height: 1.1em; background: var(--accent); vertical-align: -0.15em; margin-left: 1px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.preview { font-family: var(--f-num); text-align: right; color: var(--muted); font-size: .95rem; font-variant-numeric: tabular-nums; }
+.preview b { color: var(--fg); font-size: 1.1rem; }
+.keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.key {
+  font-family: var(--f-num); font-size: 1.1rem; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--line); background: var(--key); color: var(--fg);
+  border-radius: 8px; padding: 10px 0; min-height: 46px; touch-action: manipulation;
+}
+.key.op { background: var(--key-op); }
+.key.fn { color: var(--bad); }
+.key.const { font-size: .85rem; grid-column: span 2; color: var(--accent); }
+.key:active:not(:disabled) { transform: translateY(1px); }
+.key:disabled { opacity: .4; cursor: default; }
+.unitline { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); }
+.unitline b { font-family: var(--f-num); color: var(--fg); }
+
+.btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn {
+  font: inherit; font-weight: 700; cursor: pointer; border-radius: 8px; padding: 8px 18px;
+  border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-fg);
+  touch-action: manipulation;
+}
+.btn.big { font-size: 1.05rem; padding: 10px 28px; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--muted); font-weight: 500; text-decoration: underline; padding-inline: 6px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.kbd { font-size: .75rem; color: var(--muted); }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.result { border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; }
+.result.ok { background: var(--good-soft); }
+.result.ng { background: var(--bad-soft); }
+.result h3 { margin: 0; font-size: 1.05rem; }
+.result.ok h3 { color: var(--good); }
+.result.ng h3 { color: var(--bad); }
+.ansline { font-family: var(--f-num); font-weight: 600; }
+.steps { margin: 0; padding-left: 1.4em; display: grid; gap: 4px; }
+.steps li { font-size: .95rem; }
+.steps .f { font-family: var(--f-num); font-size: .92rem; overflow-wrap: anywhere; }
+.hint { background: var(--accent-soft); border-radius: 8px; padding: 10px 14px; font-size: .92rem; }
+
+/* ---- results ---- */
+.big-score { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.big-score b { font-family: var(--f-num); font-size: 3rem; line-height: 1; font-weight: 600; }
+.big-score span { color: var(--muted); }
+.big-score .rate { font-family: var(--f-num); font-size: 1.2rem; color: var(--accent); font-weight: 600; }
+.review { list-style: none; margin: 0; padding: 0; display: grid; }
+.review li { display: grid; grid-template-columns: 2em minmax(0, 1fr); gap: 4px 8px; padding: 10px 0; border-top: 1px solid var(--line); }
+.review .mk { font-weight: 900; font-size: 1.1rem; text-align: center; }
+.review .mk.ok { color: var(--good); }
+.review .mk.ng { color: var(--bad); }
+.review .qt { font-size: .92rem; line-height: 1.7; }
+.review .qa { grid-column: 2; font-size: .82rem; color: var(--muted); }
+.review .qa b { font-family: var(--f-num); color: var(--fg); }
+
+aside { display: grid; gap: 20px; min-width: 0; }
+.panel { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 12px; }
+.panel h2 { margin: 0; font-size: .82rem; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+.map {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(52px, .8fr) minmax(0, 1.1fr) minmax(52px, .8fr) minmax(0, 1fr);
+  grid-template-areas: "m em n eN N" ". . eV . ." ". . V . .";
+  align-items: center; row-gap: 2px;
+}
+.node { border: 1.5px solid var(--line); border-radius: 8px; padding: 6px 4px; text-align: center; display: grid; line-height: 1.25; transition: background .2s, border-color .2s; }
+.node span { font-size: .72rem; color: var(--muted); }
+.node b { font-family: var(--f-num); font-size: 1.05rem; }
+.node small { font-family: var(--f-num); font-size: .68rem; color: var(--muted); }
+.node.center { border-color: var(--fg); border-width: 2px; }
+.node.on { border-color: var(--accent); background: var(--accent-soft); }
+.edge { display: grid; justify-items: center; font-family: var(--f-num); font-size: .66rem; color: var(--muted); line-height: 1.5; }
+.edge span { padding: 0 4px; border-radius: 3px; white-space: nowrap; }
+.edge span.on { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.edge.v { grid-template-columns: auto auto; gap: 6px; padding-block: 4px; }
+.edge.v::before { content: ""; grid-column: 1 / -1; grid-row: 1; justify-self: center; width: 1.5px; height: 100%; background: var(--line); }
+.edge.v span { grid-row: 1; position: relative; }
+.map-note { margin: 0; font-size: .8rem; color: var(--muted); }
+.consts { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+.el { border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; display: flex; justify-content: space-between; align-items: baseline; gap: 4px; font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+.el b { font-size: .9rem; }
+.el span { font-size: .78rem; color: var(--muted); }
+.kv { display: grid; gap: 4px; font-size: .88rem; }
+.kv div { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.kv b { font-family: var(--f-num); font-weight: 600; }
+.route { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: .85rem; font-weight: 700; }
+.route i { font-style: normal; font-family: var(--f-num); font-size: .78rem; background: var(--accent); color: var(--accent-fg); border-radius: 3px; padding: 0 6px; }
+.route .ar { color: var(--muted); font-weight: 400; }
+@media (hover: none) { .kbd { display: none; } }
+
+/* ---- phone ---- */
+@media (max-width: 600px) {
+  .wrap { padding-block: 16px 40px; gap: 14px; }
+  .lede { font-size: .85rem; }
+  .card { padding: 16px 14px; gap: 14px; border-radius: 10px; }
+  .qbody { gap: 12px; }
+  .tile { width: 72px; padding: 4px 5px; border-width: 1.5px; }
+  .tile .mm { font-size: .62rem; }
+  .tile .fm { font-size: 1rem; }
+  .tile .fm.long { font-size: .72rem; }
+  .tile .nm { font-size: .6rem; }
+  .qtext { font-size: 1rem; line-height: 1.8; }
+  .calc { max-width: none; }
+  .screen { min-height: 72px; padding: 8px 10px; }
+  .keys { gap: 5px; }
+  .key { min-height: 44px; padding: 0; }
+  h1 { font-size: 1.4rem; }
+  #quiz .btns { display: grid; grid-template-columns: 1fr 1fr; }
+  #btn-check { grid-column: 1 / -1; padding: 12px; font-size: 1.05rem; }
+  #btn-quit { grid-column: 1 / -1; justify-self: center; }
+  .conv { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .conv select { width: 100%; }
+  .conv .arrow { transform: rotate(90deg); justify-self: center; line-height: 1.2; }
+  .seg { width: 100%; }
+  .seg label { flex: 1; text-align: center; padding-inline: 0; }
+  #btn-start { width: 100%; }
+  #summary .btns { display: grid; }
+  .big-score b { font-size: 2.4rem; }
+  .steps { padding-left: 1.2em; }
+  .steps .f { font-size: .85rem; }
+}
+#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+.result.ok h3 { animation: pop .45s cubic-bezier(.2, 1.6, .4, 1); transform-origin: left center; }
+@keyframes pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.key .kh { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .key { position: relative; }
+  .key .kh { display: block; position: absolute; right: 6px; bottom: 2px; font-size: .6rem; font-weight: 400; color: var(--muted); line-height: 1; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>モル計算ドリル</h1>
+  </header>
+
+  <div class="main">
+    <!-- top page -->
+    <section class="card" id="home">
+      <h2>練習の設定</h2>
+      <div class="field">
+        <span class="lbl">換算の種類</span>
+        <div class="conv">
+          <select id="sel-from" aria-label="与えられる量">
+            <option value="any">ランダム</option>
+            <option value="m">質量 [g]</option>
+            <option value="n">物質量 [mol]</option>
+            <option value="N">粒子数 [個]</option>
+            <option value="V">気体の体積 [L]</option>
+          </select>
+          <span class="arrow" aria-hidden="true">→</span>
+          <select id="sel-to" aria-label="求める量">
+            <option value="any">ランダム</option>
+            <option value="n">物質量 [mol]</option>
+            <option value="m">質量 [g]</option>
+            <option value="N">粒子数 [個]</option>
+            <option value="V">気体の体積 [L]</option>
+            <option value="A">原子の数 [個]</option>
+          </select>
+        </div>
+        <p class="combo-note" id="combo-note"></p>
+      </div>
+      <div class="field">
+        <span class="lbl">問題数</span>
+        <div class="seg" role="radiogroup" aria-label="問題数">
+          <input type="radio" name="count" id="c5" value="5"><label for="c5">5問</label>
+          <input type="radio" name="count" id="c10" value="10" checked><label for="c10">10問</label>
+          <input type="radio" name="count" id="c20" value="20"><label for="c20">20問</label>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn big" id="btn-start" type="button">練習をはじめる</button>
+      </div>
+      <p class="last" id="last" hidden></p>
+    </section>
+
+    <!-- quiz -->
+    <section class="card" id="quiz" hidden aria-live="polite">
+      <div class="qhead">
+        <span class="tag" id="q-tag"></span>
+        <div class="prog"><span id="q-no"></span><div class="dots" id="dots"></div></div>
+      </div>
+      <div class="qbody">
+        <div class="tile" aria-hidden="true">
+          <div class="mm" id="t-mm"></div>
+          <div class="fm" id="t-fm"></div>
+          <div class="nm" id="t-nm"></div>
+        </div>
+        <p class="qtext" id="q-text"></p>
+      </div>
+
+      <div class="calc">
+        <div class="screen" id="screen">
+          <div class="expr" id="expr" aria-live="off"></div>
+          <div class="preview" id="preview"></div>
+        </div>
+        <div class="unitline"><span>答えの単位</span><b id="ans-unit"></b></div>
+        <div class="keys" id="keys">
+          <button class="key fn" data-k="C" type="button" aria-label="すべて消す">C</button>
+          <button class="key fn" data-k="BS" type="button" aria-label="1文字消す">⌫</button>
+          <button class="key op" data-k="(" type="button">(</button>
+          <button class="key op" data-k=")" type="button">)</button>
+          <button class="key" data-k="7" type="button">7</button>
+          <button class="key" data-k="8" type="button">8</button>
+          <button class="key" data-k="9" type="button">9</button>
+          <button class="key op" data-k="/" type="button" aria-label="割る">÷</button>
+          <button class="key" data-k="4" type="button">4</button>
+          <button class="key" data-k="5" type="button">5</button>
+          <button class="key" data-k="6" type="button">6</button>
+          <button class="key op" data-k="*" type="button" aria-label="掛ける">×</button>
+          <button class="key" data-k="1" type="button">1</button>
+          <button class="key" data-k="2" type="button">2</button>
+          <button class="key" data-k="3" type="button">3</button>
+          <button class="key op" data-k="-" type="button" aria-label="引く">−</button>
+          <button class="key" data-k="0" type="button">0</button>
+          <button class="key" data-k="." type="button">.</button>
+          <button class="key op" data-k="E" type="button" aria-label="×10の累乗" title="キーボード：E">×10<sup>n</sup><small class="kh">E</small></button>
+          <button class="key op" data-k="+" type="button" aria-label="足す">+</button>
+          <button class="key const" data-k="NA" type="button" title="キーボード：A">6.0×10<sup>23</sup><small class="kh">A</small></button>
+          <button class="key const" data-k="VM" type="button" title="キーボード：V">22.4<small class="kh">V</small></button>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button class="btn" id="btn-check" type="button">答え合わせ</button>
+        <button class="btn ghost" id="btn-hint" type="button">ヒント</button>
+        <button class="btn ghost" id="btn-skip" type="button">解答を見る</button>
+        <button class="btn quiet" id="btn-quit" type="button">トップへ戻る</button>
+      </div>
+      <p class="kbd" style="margin:0">キーボードでも入力できます（× → *、÷ → /、×10ⁿ → E、6.0×10²³ → A、22.4 → V、Enter で答え合わせ・次へ、Esc で消去）。</p>
+      <div class="hint" id="hint" hidden></div>
+      <div class="result" id="result" hidden></div>
+    </section>
+
+    <!-- results -->
+    <section class="card" id="summary" hidden>
+      <h2>結果</h2>
+      <div class="big-score"><b id="sum-score"></b><span id="sum-of"></span><span class="rate" id="sum-rate"></span></div>
+      <p class="combo-note" id="sum-msg" style="margin:0"></p>
+      <div class="btns">
+        <button class="btn" id="btn-again" type="button">同じ設定でもう一度</button>
+        <button class="btn ghost" id="btn-home" type="button">トップへ戻る</button>
+      </div>
+      <ol class="review" id="review"></ol>
+    </section>
+
+    <aside>
+      <section class="panel">
+        <h2>物質量を中心に考える</h2>
+        <div class="map" id="map">
+          <div class="node" data-k="m" style="grid-area:m"><span>質量</span><b>m</b><small>g</small></div>
+          <div class="edge" style="grid-area:em"><span data-e="m-in">÷M →</span><span data-e="m-out">← ×M</span></div>
+          <div class="node center" data-k="n" style="grid-area:n"><span>物質量</span><b>n</b><small>mol</small></div>
+          <div class="edge" style="grid-area:eN"><span data-e="N-out">×N<sub>A</sub> →</span><span data-e="N-in">← ÷N<sub>A</sub></span></div>
+          <div class="node" data-k="N" style="grid-area:N"><span>粒子数</span><b>N</b><small>個</small></div>
+          <div class="edge v" style="grid-area:eV"><span data-e="V-in">÷22.4 ↑</span><span data-e="V-out">↓ ×22.4</span></div>
+          <div class="node" data-k="V" style="grid-area:V"><span>気体の体積</span><b>V</b><small>L（標準状態）</small></div>
+        </div>
+        <p class="map-note">どの量からも、いったん物質量 n に直してから目的の量へ進みます。ヒントや解答で、使う経路が色付きで表示されます。</p>
+      </section>
+      <section class="panel">
+        <h2>使う定数</h2>
+        <div class="kv">
+          <div><span>アボガドロ定数 N<sub>A</sub></span><b>6.0×10<sup>23</sup> /mol</b></div>
+          <div><span>気体のモル体積（標準状態）</span><b>22.4 L/mol</b></div>
+        </div>
+        <h2>原子量</h2>
+        <div class="consts" id="consts"></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<script>
+// ---------- celebration effects (canvas, no sound) ----------
+const FX = (() => {
+  const cv = document.getElementById('fx');
+  const ctx = cv.getContext('2d');
+  const COLORS = ['#ff4d6d', '#ffb703', '#3bc9db', '#5c7cfa', '#51cf66', '#f783ac', '#ffd43b'];
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let parts = [], running = false, W = 0, H = 0;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  function resize() {
+    const d = Math.min(window.devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * d; cv.height = H * d;
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+  }
+  function loop() {
+    ctx.clearRect(0, 0, W, H);
+    parts = parts.filter(p => p.life > 0 && p.y < H + 40);
+    for (const p of parts) {
+      p.vx *= p.drag; p.vy = p.vy * p.drag + p.g;
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life--;
+      const a = Math.min(1, p.life / 30);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.c;
+      if (p.kind === 'spark') {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
+      } else {
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.scale(1, Math.cos(p.rot * 2.3));  // flutter
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      }
+    }
+    ctx.globalAlpha = 1;
+    if (parts.length) requestAnimationFrame(loop); else { running = false; ctx.clearRect(0, 0, W, H); }
+  }
+  function start() { if (!running) { running = true; resize(); requestAnimationFrame(loop); } }
+  // party popper: confetti shot up and inward from both lower corners
+  function cracker() {
+    if (reduce.matches) return;
+    resize();
+    const n = W < 600 ? 60 : 90;
+    for (const side of [0, 1]) {
+      for (let i = 0; i < n; i++) {
+        const ang = side ? rnd(-2.3, -1.75) : rnd(-1.4, -0.85);
+        const sp = rnd(9, 19) * Math.min(1, H / 700 + 0.3);
+        parts.push({ kind: 'conf', x: side ? W + 5 : -5, y: H * 0.92, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+          g: 0.32, drag: 0.965, rot: rnd(0, 6.28), vr: rnd(-0.25, 0.25), w: rnd(6, 11), h: rnd(4, 7),
+          c: COLORS[i % COLORS.length], life: rnd(110, 170) });
+      }
+    }
+    start();
+  }
+  // fireworks: several radial bursts in the upper part of the screen
+  function fireworks(count = 5) {
+    if (reduce.matches) return;
+    resize();
+    for (let k = 0; k < count; k++) {
+      setTimeout(() => {
+        const cx = rnd(W * 0.15, W * 0.85), cy = rnd(H * 0.12, H * 0.45);
+        const c1 = COLORS[Math.floor(rnd(0, COLORS.length))], c2 = '#fff6d5';
+        const m = 70;
+        for (let i = 0; i < m; i++) {
+          const ang = (i / m) * 6.283 + rnd(-0.05, 0.05), sp = rnd(3, 6.5);
+          parts.push({ kind: 'spark', x: cx, y: cy, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+            g: 0.06, drag: 0.97, rot: 0, vr: 0, r: rnd(1.6, 2.8), c: i % 4 ? c1 : c2, life: rnd(60, 95) });
+        }
+        start();
+      }, k * 380);
+    }
+  }
+  addEventListener('resize', () => { if (running) resize(); });
+  return { cracker, fireworks };
+})();
+
+const AM = { H: 1.0, C: 12, N: 14, O: 16, Na: 23, Al: 27, S: 32, Cl: 35.5, Ca: 40, Fe: 56, Cu: 64 };
+const NA = 6.0e23, VM = 22.4;
+
+// kind: mol = 分子, ion = イオン結晶（粒子数の問題には出さない）, metal = 原子
+const SUBS = [
+  { f: 'H<sub>2</sub>', n: '水素', a: { H: 2 }, gas: 1, kind: 'mol' },
+  { f: 'O<sub>2</sub>', n: '酸素', a: { O: 2 }, gas: 1, kind: 'mol' },
+  { f: 'N<sub>2</sub>', n: '窒素', a: { N: 2 }, gas: 1, kind: 'mol' },
+  { f: 'CO<sub>2</sub>', n: '二酸化炭素', a: { C: 1, O: 2 }, gas: 1, kind: 'mol' },
+  { f: 'CO', n: '一酸化炭素', a: { C: 1, O: 1 }, gas: 1, kind: 'mol' },
+  { f: 'CH<sub>4</sub>', n: 'メタン', a: { C: 1, H: 4 }, gas: 1, kind: 'mol' },
+  { f: 'C<sub>3</sub>H<sub>8</sub>', n: 'プロパン', a: { C: 3, H: 8 }, gas: 1, kind: 'mol' },
+  { f: 'NH<sub>3</sub>', n: 'アンモニア', a: { N: 1, H: 3 }, gas: 1, kind: 'mol' },
+  { f: 'Cl<sub>2</sub>', n: '塩素', a: { Cl: 2 }, gas: 1, kind: 'mol' },
+  { f: 'HCl', n: '塩化水素', a: { H: 1, Cl: 1 }, gas: 1, kind: 'mol' },
+  { f: 'SO<sub>2</sub>', n: '二酸化硫黄', a: { S: 1, O: 2 }, gas: 1, kind: 'mol' },
+  { f: 'H<sub>2</sub>O', n: '水', a: { H: 2, O: 1 }, kind: 'mol' },
+  { f: 'C<sub>6</sub>H<sub>12</sub>O<sub>6</sub>', n: 'グルコース', a: { C: 6, H: 12, O: 6 }, kind: 'mol' },
+  { f: 'H<sub>2</sub>SO<sub>4</sub>', n: '硫酸', a: { H: 2, S: 1, O: 4 }, kind: 'mol' },
+  { f: 'C<sub>2</sub>H<sub>5</sub>OH', n: 'エタノール', a: { C: 2, H: 6, O: 1 }, kind: 'mol' },
+  { f: 'NaCl', n: '塩化ナトリウム', a: { Na: 1, Cl: 1 }, kind: 'ion' },
+  { f: 'NaOH', n: '水酸化ナトリウム', a: { Na: 1, O: 1, H: 1 }, kind: 'ion' },
+  { f: 'CaCO<sub>3</sub>', n: '炭酸カルシウム', a: { Ca: 1, C: 1, O: 3 }, kind: 'ion' },
+  { f: 'Fe', n: '鉄', a: { Fe: 1 }, kind: 'metal' },
+  { f: 'Cu', n: '銅', a: { Cu: 1 }, kind: 'metal' },
+  { f: 'Al', n: 'アルミニウム', a: { Al: 1 }, kind: 'metal' },
+];
+SUBS.forEach(s => { s.M = +Object.entries(s.a).reduce((t, [e, k]) => t + AM[e] * k, 0).toFixed(1); });
+
+const QN = { m: '質量', n: '物質量', N: '粒子数', V: '気体の体積', A: '原子の数' };
+const FROMS = ['m', 'n', 'N', 'V'];
+const TOS = ['n', 'm', 'N', 'V', 'A'];
+const N_CHOICES = ['0.10', '0.20', '0.25', '0.30', '0.40', '0.50', '0.75', '1.0', '1.5', '2.0', '2.5', '3.0', '4.0', '5.0', '0.050', '0.020'];
+
+function combos(from, to) {
+  const out = [];
+  for (const f of FROMS) for (const t of TOS) {
+    if (f === t) continue;
+    if (from !== 'any' && f !== from) continue;
+    if (to !== 'any' && t !== to) continue;
+    out.push({ from: f, to: t, label: `${QN[f]} → ${QN[t]}` });
+  }
+  return out;
+}
+
+// ---------- number helpers ----------
+const num = x => String(Number(x.toPrecision(3)));
+function sciParts(x, sig = 2) {
+  let e = Math.floor(Math.log10(Math.abs(x)));
+  let m = +(x / 10 ** e).toPrecision(sig);
+  if (Math.abs(m) >= 10) { m /= 10; e += 1; }
+  return { m: m.toFixed(sig - 1), e };
+}
+const sciHtml = (x, sig) => { const p = sciParts(x, sig); return `${p.m}×10<sup>${p.e}</sup>`; };
+const fmtQty = (k, x) => (k === 'N' || k === 'A') ? sciHtml(x, 2) : num(x);
+const fmtAny = x => (x !== 0 && (Math.abs(x) >= 1e5 || Math.abs(x) < 1e-3)) ? sciHtml(x, 3) : String(Number(x.toPrecision(4)));
+const UNIT = { m: 'g', n: 'mol', N: '個', A: '個', V: 'L' };
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+function mExpr(s) {
+  const parts = Object.entries(s.a).map(([e, k]) => {
+    const w = e === 'H' ? '1.0' : String(AM[e]);
+    return k === 1 ? w : `${w}×${k}`;
+  });
+  return parts.length === 1 && s.a[Object.keys(s.a)[0]] === 1
+    ? `${s.f} の原子量は ${s.M} なので、モル質量 M = ${s.M} g/mol`
+    : `${s.f} の式量・分子量 = ${parts.join(' + ')} = ${s.M} なので、モル質量 M = ${s.M} g/mol`;
+}
+const particle = s => s.kind === 'metal' ? '原子' : '分子';
+
+// ---------- problem generation ----------
+function makeProblem(type) {
+  const needGas = type.from === 'V' || type.to === 'V';
+  const needParticle = type.from === 'N' || type.to === 'N' || type.to === 'A';
+  let pool = SUBS.filter(s => (!needGas || s.gas) && (!needParticle || s.kind !== 'ion'));
+  if (type.to === 'A') pool = pool.filter(s => s.kind === 'mol');
+  const s = pick(pool);
+  let el, k;
+  if (type.to === 'A') {
+    const els = Object.keys(s.a);
+    const multi = els.filter(e => s.a[e] >= 2);
+    el = pick(multi.length ? multi : els); k = s.a[el];
+  }
+  // only use amounts for which every printed value and the answer come out exact, with no rounding
+  const uses = new Set([type.from, type.to]);
+  const exact = (x, sig) => Math.abs(+x.toPrecision(sig) - x) <= 1e-9 * x;
+  const nStr = pick(N_CHOICES.filter(ns => {
+    const n = +ns;
+    return (!uses.has('m') || exact(n * s.M, 3)) && (!uses.has('V') || exact(n * VM, 3))
+      && (!uses.has('N') || exact(n * 6, 2)) && (!uses.has('A') || exact(n * k * 6, 2));
+  }));
+  const n0 = +nStr;
+
+  // the given value, rounded the way it would be printed
+  let given, gHtml;
+  if (type.from === 'n') { given = n0; gHtml = nStr; }
+  if (type.from === 'm') { given = +num(n0 * s.M); gHtml = String(given); }
+  if (type.from === 'V') { given = +num(n0 * VM); gHtml = String(given); }
+  if (type.from === 'N') { const p = sciParts(n0 * NA); given = +p.m * 10 ** p.e; gHtml = sciHtml(given, 2); }
+
+  const n = type.from === 'n' ? given : type.from === 'm' ? given / s.M : type.from === 'V' ? given / VM : given / NA;
+  const steps = [];
+  if (type.from === 'm' || type.to === 'm') steps.push(mExpr(s));
+  if (type.from === 'm') steps.push(`n = m ÷ M = ${gHtml} g ÷ ${s.M} g/mol = <b>${num(n)} mol</b>`);
+  if (type.from === 'N') steps.push(`n = N ÷ N<sub>A</sub> = ${gHtml} ÷ (6.0×10<sup>23</sup> /mol) = <b>${num(n)} mol</b>`);
+  if (type.from === 'V') steps.push(`n = V ÷ 22.4 L/mol = ${gHtml} L ÷ 22.4 L/mol = <b>${num(n)} mol</b>`);
+
+  let ans;
+  if (type.to === 'n') ans = n;
+  if (type.to === 'm') { ans = n * s.M; steps.push(`m = n × M = ${num(n)} mol × ${s.M} g/mol = <b>${num(ans)} g</b>`); }
+  if (type.to === 'V') { ans = n * VM; steps.push(`V = n × 22.4 L/mol = ${num(n)} mol × 22.4 L/mol = <b>${num(ans)} L</b>`); }
+  if (type.to === 'N') { ans = n * NA; steps.push(`N = n × N<sub>A</sub> = ${num(n)} mol × 6.0×10<sup>23</sup> /mol = <b>${sciHtml(ans, 2)} 個</b>`); }
+  if (type.to === 'A') {
+    const nA = n * k;
+    ans = nA * NA;
+    steps.push(`${s.f} 1 分子に ${el} 原子は ${k} 個含まれるので、${el} 原子の物質量 = ${num(n)} mol × ${k} = <b>${num(nA)} mol</b>`);
+    steps.push(`${el} 原子の数 = ${num(nA)} mol × 6.0×10<sup>23</sup> /mol = <b>${sciHtml(ans, 2)} 個</b>`);
+  }
+
+  const v = h => `<span class="v">${h}</span>`;
+  const givenPhrase = {
+    n: `${v(gHtml + ' mol')} の${s.n}`,
+    m: `${v(gHtml + ' g')} の${s.n}`,
+    V: `標準状態で ${v(gHtml + ' L')} の${s.n}`,
+    N: `${v(gHtml + ' 個')} の${s.n}${particle(s)}`,
+  }[type.from];
+  const ask = {
+    n: '物質量は何 mol か。',
+    m: '質量は何 g か。',
+    V: '標準状態での体積は何 L か。',
+    N: `${particle(s)}の数は何個か。`,
+  }[type.to];
+  const text = type.to === 'A'
+    ? `${givenPhrase}に含まれる <b>${el} 原子</b>の数は何個か。`
+    : `${givenPhrase}がある。この${s.n}の${ask}`;
+
+  const hintFirst = {
+    m: '質量 → 物質量は「モル質量 M で割る」。まず M を原子量から求めましょう。',
+    n: '物質量が分かっているので、目的の量へ換算するだけです。',
+    N: '粒子数 → 物質量は「アボガドロ定数 6.0×10²³ で割る」。',
+    V: '気体の体積 → 物質量は「22.4 L/mol で割る」（標準状態）。',
+  }[type.from];
+  const hintNext = type.to === 'A'
+    ? `求めた物質量に、1 分子あたりの ${el} 原子の数（${k} 個）を掛けてから 6.0×10²³ を掛けます。`
+    : { m: '物質量 → 質量は「M を掛ける」。', V: '物質量 → 体積は「22.4 を掛ける」。', N: '物質量 → 粒子数は「6.0×10²³ を掛ける」。', n: '' }[type.to];
+
+  return { type, s, text, ans, steps, hint: [hintFirst, hintNext].filter(Boolean).join(' ') };
+}
+
+function routeHtml(t) {
+  const IN = { m: '÷M', N: '÷N<sub>A</sub>', V: '÷22.4' };
+  const OUT = { m: '×M', N: '×N<sub>A</sub>', V: '×22.4', A: '×個数 ×N<sub>A</sub>' };
+  const ar = '<span class="ar">→</span>';
+  let h = QN[t.from];
+  if (t.from !== 'n') h += `${ar}<i>${IN[t.from]}</i>${ar}物質量`;
+  if (t.to !== 'n') h += `${ar}<i>${OUT[t.to]}</i>${ar}${QN[t.to]}`;
+  return `<div class="route">${h}</div>`;
+}
+const narrow = () => window.matchMedia('(max-width: 820px)').matches;
+
+function isCorrect(user, exact) {
+  if (user === null || !isFinite(user) || user <= 0) return false;
+  if (Math.abs(user - exact) / exact <= 0.02) return true;
+  for (const sig of [2, 3]) {
+    const r = +exact.toPrecision(sig);
+    if (Math.abs(user - r) / r < 1e-9) return true;
+  }
+  return false;
+}
+
+// ---------- calculator ----------
+// internal expression: digits . + - * / ( ) and E (= ×10^)
+function evaluate(s) {
+  let i = 0;
+  const number = () => {
+    const st = i;
+    while (/[\d.]/.test(s[i] || '')) i++;
+    const m = s.slice(st, i);
+    if (!m || m === '.' || (m.match(/\./g) || []).length > 1) throw 0;
+    let v = parseFloat(m);
+    if (s[i] === 'E') {
+      i++;
+      let sign = 1;
+      if (s[i] === '-') { sign = -1; i++; } else if (s[i] === '+') i++;
+      const st2 = i;
+      while (/\d/.test(s[i] || '')) i++;
+      if (st2 === i) throw 0;
+      v *= 10 ** (sign * parseInt(s.slice(st2, i), 10));
+    }
+    return v;
+  };
+  const factor = () => {
+    if (s[i] === '-') { i++; return -factor(); }
+    if (s[i] === '+') { i++; return factor(); }
+    if (s[i] === '(') { i++; const v = expr(); if (s[i] === ')') i++; return v; }
+    return number();
+  };
+  const term = () => {
+    let v = factor();
+    while (s[i] === '*' || s[i] === '/') { const op = s[i++]; const r = factor(); v = op === '*' ? v * r : v / r; }
+    return v;
+  };
+  const expr = () => {
+    let v = term();
+    while (s[i] === '+' || s[i] === '-') { const op = s[i++]; const r = term(); v = op === '+' ? v + r : v - r; }
+    return v;
+  };
+  try { if (!s) return null; const v = expr(); return i === s.length && isFinite(v) ? v : null; } catch (e) { return null; }
+}
+
+function exprHtml(s) {
+  // a power of ten right after ÷ is shown in parentheses so the display reads correctly: a ÷ (1.5×10²³)
+  s = s.replace(/\/([\d.]+E[-+]?\d*)/g, '/($1)');
+  return s
+    .replace(/\*/g, '×').replace(/\//g, '÷').replace(/-/g, '−')
+    .replace(/E([−+]?\d*)/g, (_, p) => `×10<sup>${p || '□'}</sup>`);
+}
+
+let expr = '';
+function press(k) {
+  if (answered) return;
+  const last = expr.slice(-1);
+  const inExp = /E[-+]?\d*$/.test(expr);
+  if (k === 'C') expr = '';
+  else if (k === 'BS') expr = expr.slice(0, -1);
+  else if (k === 'NA') expr += (/[\d.)]/.test(last) ? '*' : '') + '6.0E23';  // shown as ÷(6.0×10²³) only after ÷, see exprHtml
+  else if (k === 'VM') expr += (/[\d.)]/.test(last) ? '*' : '') + '22.4';
+  else if (k === 'E') {
+    if (!/[\d.]/.test(last) || /E/.test(expr.match(/[\d.E+-]*$/)[0].replace(/^[+-]/, ''))) return;
+    expr += 'E';
+  } else if (k === '.') {
+    if (inExp) return;
+    const cur = expr.match(/[\d.]*$/)[0];
+    if (cur.includes('.')) return;
+    expr += cur ? '.' : '0.';
+  } else if (/\d/.test(k)) expr += k;
+  else if (k === '-' && last === 'E') expr += '-';
+  else if ('+-*/'.includes(k)) {
+    if (last === 'E') return;
+    if ('+-*/'.includes(last) && last !== '' ) {
+      // replace operator, but allow "×−" / "÷−" for a negative factor
+      if (k === '-' && (last === '*' || last === '/')) expr += k;
+      else expr = expr.slice(0, -1) + k;
+    } else if (!expr && k !== '-') return;
+    else expr += k;
+  } else if (k === '(') expr += (/[\d.)]/.test(last) ? '*' : '') + '(';
+  else if (k === ')') {
+    const open = (expr.match(/\(/g) || []).length - (expr.match(/\)/g) || []).length;
+    if (open > 0 && /[\d.)]/.test(last)) expr += ')';
+  }
+  if (expr.length > 60) expr = expr.slice(0, 60);
+  renderCalc();
+}
+
+function renderCalc() {
+  $('expr').innerHTML = (expr ? exprHtml(expr) : '<span style="color:var(--muted)">0</span>') + (answered ? '' : '<span class="caret"></span>');
+  const v = evaluate(expr);
+  $('preview').innerHTML = !expr ? '式を入力すると計算結果が出ます'
+    : v === null ? '式が途中です'
+    : `= <b>${fmtAny(v)}</b>`;
+}
+
+// ---------- state ----------
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } },
+};
+const $ = id => document.getElementById(id);
+let settings = store.get('mol.settings', { from: 'any', to: 'any', count: 10 });
+let set = null;          // { combos, count, results: [] }
+let cur = null, answered = false;
+
+function show(id) {
+  ['home', 'quiz', 'summary'].forEach(x => $(x).hidden = x !== id);
+  if (id !== 'quiz') setMap(null);
+}
+
+function readSettings() {
+  settings = {
+    from: $('sel-from').value,
+    to: $('sel-to').value,
+    count: +document.querySelector('input[name="count"]:checked').value,
+  };
+  store.set('mol.settings', settings);
+}
+
+function renderHome() {
+  $('sel-from').value = settings.from;
+  $('sel-to').value = settings.to;
+  const r = document.querySelector(`input[name="count"][value="${settings.count}"]`);
+  if (r) r.checked = true;
+  updateComboNote();
+  const last = store.get('mol.last', null);
+  if (last) {
+    $('last').innerHTML = `前回の結果：${last.label}・${last.count}問で <b>${last.ok} / ${last.count}</b> 問正解`;
+    $('last').hidden = false;
+  }
+}
+
+function updateComboNote() {
+  readSettings();
+  const c = combos(settings.from, settings.to);
+  const note = $('combo-note');
+  if (!c.length) {
+    note.textContent = '同じ量どうしは選べません。どちらかを変えてください。';
+    note.className = 'combo-note err';
+    $('btn-start').disabled = true;
+  } else {
+    note.textContent = c.length === 1
+      ? (['m', 'N', 'V', 'A'].includes(c[0].from) && ['m', 'N', 'V', 'A'].includes(c[0].to) ? '物質量を経由する 2 段階の計算です。' : '1 回の換算で求められる基本問題です。')
+      : `${c.length} 通りの組み合わせからランダムに出題します。`;
+    note.className = 'combo-note';
+    $('btn-start').disabled = false;
+  }
+}
+
+function startSet() {
+  readSettings();
+  const c = combos(settings.from, settings.to);
+  if (!c.length) return;
+  set = { combos: c, count: settings.count, results: [] };
+  show('quiz');
+  next();
+}
+
+function renderDots() {
+  const n = set.results.length;
+  $('dots').innerHTML = Array.from({ length: set.count }, (_, i) =>
+    `<i class="${i < n ? (set.results[i].ok ? 'ok' : 'ng') : i === n ? 'cur' : ''}"></i>`).join('');
+  $('q-no').textContent = `${Math.min(n + (answered ? 0 : 1), set.count)} / ${set.count}`;
+}
+
+function setMap(p) {
+  document.querySelectorAll('.node.on, .edge span.on').forEach(e => e.classList.remove('on'));
+  if (!p) return;
+  const { from, to } = p.type;
+  const t = to === 'A' ? 'N' : to;
+  new Set([from, 'n', t]).forEach(k => document.querySelector(`.node[data-k="${k}"]`).classList.add('on'));
+  if (from !== 'n') document.querySelector(`[data-e="${from}-in"]`).classList.add('on');
+  if (t !== 'n') document.querySelector(`[data-e="${t}-out"]`).classList.add('on');
+}
+
+function next() {
+  let t, tries = 0;
+  do { t = pick(set.combos); tries++; } while (cur && set.combos.length > 1 && set.results.length && t.label === cur.type.label && tries < 4);
+  cur = makeProblem(t);
+  answered = false;
+  expr = '';
+  $('q-tag').textContent = t.label;
+  $('t-mm').textContent = cur.s.M;
+  $('t-fm').innerHTML = cur.s.f;
+  $('t-fm').classList.toggle('long', cur.s.f.replace(/<[^>]+>/g, '').length > 5);
+  $('t-nm').textContent = cur.s.n;
+  $('q-text').innerHTML = cur.text;
+  $('ans-unit').textContent = UNIT[t.to];
+  $('hint').hidden = true;
+  $('result').hidden = true;
+  $('screen').classList.remove('dis');
+  document.querySelectorAll('.key').forEach(b => b.disabled = false);
+  $('btn-check').textContent = '答え合わせ';
+  $('btn-hint').disabled = false;
+  $('btn-skip').disabled = false;
+  setMap(null);
+  renderCalc();
+  renderDots();
+  if (narrow() && set.results.length) $('quiz').scrollIntoView({ block: 'start' });
+}
+
+function finish(user, skipped) {
+  answered = true;
+  const ok = !skipped && isCorrect(user, cur.ans);
+  set.results.push({ ok, text: cur.text, label: cur.type.label, ans: `${fmtQty(cur.type.to, cur.ans)} ${UNIT[cur.type.to]}`,
+    user: skipped || user === null ? '―' : `${fmtAny(user)} ${UNIT[cur.type.to]}` });
+
+  const ansHtml = `${fmtQty(cur.type.to, cur.ans)} ${UNIT[cur.type.to]}`;
+  const r = $('result');
+  r.className = 'result ' + (ok ? 'ok' : 'ng');
+  const head = ok ? '正解です' : skipped ? '解答' : '不正解です';
+  const yours = (!ok && !skipped) ? `<div>あなたの答え：<span class="ansline">${fmtAny(user)} ${UNIT[cur.type.to]}</span></div>` : '';
+  r.innerHTML = `<h3>${head}　<span class="ansline">${ansHtml}</span></h3>${yours}${routeHtml(cur.type)}
+    <ol class="steps">${cur.steps.map(s => `<li><span class="f">${s}</span></li>`).join('')}</ol>`;
+  r.hidden = false;
+  $('hint').hidden = true;
+  $('screen').classList.add('dis');
+  document.querySelectorAll('.key').forEach(b => b.disabled = true);
+  $('btn-check').textContent = set.results.length >= set.count ? '結果を見る' : '次の問題';
+  $('btn-hint').disabled = true;
+  $('btn-skip').disabled = true;
+  setMap(cur);
+  renderCalc();
+  renderDots();
+  $('btn-check').focus({ preventScroll: true });
+  if (narrow()) r.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (ok) FX.cracker();
+}
+
+function check() {
+  if (answered) {
+    if (set.results.length >= set.count) showSummary(); else next();
+    return;
+  }
+  const u = evaluate(expr);
+  if (u === null) {
+    $('hint').textContent = expr ? '式が途中です。かっこや ×10ⁿ の指数を確かめてください。' : '電卓で答えを入力してください。計算式のままでも答え合わせできます（例：11÷44）。';
+    $('hint').hidden = false;
+    return;
+  }
+  finish(u, false);
+}
+
+function showSummary() {
+  const ok = set.results.filter(r => r.ok).length;
+  const n = set.count;
+  $('sum-score').textContent = ok;
+  $('sum-of').textContent = `/ ${n} 問正解`;
+  $('sum-rate').textContent = Math.round(ok / n * 100) + '%';
+  const rate = ok / n;
+  $('sum-msg').textContent = rate === 1 ? '全問正解です。問題数や換算の種類を変えて挑戦してみましょう。'
+    : rate >= 0.8 ? 'よくできています。間違えた問題の解き方を下で確認しましょう。'
+    : rate >= 0.5 ? '半分以上できています。右の図で、物質量を経由する流れを確認しましょう。'
+    : 'まずは基本の 1 段階の換算（例：質量 → 物質量）から練習しましょう。';
+  $('review').innerHTML = set.results.map((r, i) => `<li>
+      <span class="mk ${r.ok ? 'ok' : 'ng'}" aria-label="${r.ok ? '正解' : '不正解'}">${r.ok ? '○' : '×'}</span>
+      <span class="qt">${i + 1}. ${r.text}</span>
+      <span class="qa">正解 <b>${r.ans}</b>　あなたの答え <b>${r.user}</b></span>
+    </li>`).join('');
+  const label = combos(settings.from, settings.to).length === 1 ? set.combos[0].label
+    : `${settings.from === 'any' ? 'ランダム' : QN[settings.from]} → ${settings.to === 'any' ? 'ランダム' : QN[settings.to]}`;
+  store.set('mol.last', { label, count: n, ok });
+  show('summary');
+  $('summary').scrollIntoView({ block: 'start' });
+  if (rate === 1) { FX.cracker(); FX.fireworks(6); }
+  else if (rate >= 0.8) FX.fireworks(3);
+}
+
+// ---------- events ----------
+$('sel-from').onchange = updateComboNote;
+$('sel-to').onchange = updateComboNote;
+document.querySelectorAll('input[name="count"]').forEach(r => r.onchange = readSettings);
+$('btn-start').onclick = startSet;
+$('btn-again').onclick = startSet;
+$('btn-home').onclick = () => { renderHome(); show('home'); };
+$('btn-quit').onclick = () => { renderHome(); show('home'); };
+$('keys').addEventListener('click', e => { const b = e.target.closest('.key'); if (b) press(b.dataset.k); });
+$('btn-check').onclick = check;
+$('btn-skip').onclick = () => { if (!answered) finish(null, true); };
+$('btn-hint').onclick = () => {
+  $('hint').innerHTML = routeHtml(cur.type) + `<div>${cur.hint}</div>`;
+  $('hint').hidden = false; setMap(cur);
+  if (narrow()) $('hint').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+};
+
+document.addEventListener('keydown', e => {
+  if ($('quiz').hidden || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
+  const tag = e.target.tagName;
+  if (tag === 'SELECT' || tag === 'INPUT') return;
+  const map = { 'Backspace': 'BS', 'Delete': 'C', 'Escape': 'C', 'x': '*', 'X': '*', '×': '*', '÷': '/', 'e': 'E', 'E': 'E', '^': 'E', 'a': 'NA', 'A': 'NA', 'v': 'VM', 'V': 'VM' };
+  if (e.key === 'Enter') {
+    if (tag === 'BUTTON' && e.target !== $('btn-check')) return;
+    e.preventDefault(); check(); return;
+  }
+  const k = map[e.key] || (/^[\d.+\-*/()]$/.test(e.key) ? e.key : null);
+  if (k) { e.preventDefault(); press(k); }
+});
+
+$('consts').innerHTML = Object.entries(AM).map(([e, w]) => `<div class="el"><b>${e}</b><span>${e === 'H' ? '1.0' : w}</span></div>`).join('');
+renderHome();
+show('home');
+</script>
+</body>
+</html>
