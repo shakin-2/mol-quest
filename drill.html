@@ -631,7 +631,7 @@ function makeProblem(type) {
     ? `求めた物質量に、1 分子あたりの ${el} 原子の数（${k} 個）を掛けてから 6.0×10²³ を掛けます。`
     : { m: '物質量 → 質量は「M を掛ける」。', V: '物質量 → 体積は「22.4 を掛ける」。', N: '物質量 → 粒子数は「6.0×10²³ を掛ける」。', n: '' }[type.to];
 
-  return { type, s, text, ans, steps, hint: [hintFirst, hintNext].filter(Boolean).join(' ') };
+  return { type, s, text, given, k, ans, steps, hint: [hintFirst, hintNext].filter(Boolean).join(' ') };
 }
 
 function routeHtml(t) {
@@ -713,8 +713,13 @@ function press(k) {
   else if (k === 'NA') expr += (/[\d.)]/.test(last) ? '*' : '') + '6.0E23';  // shown as ÷(6.0×10²³) only after ÷, see exprHtml
   else if (k === 'VM') expr += (/[\d.)]/.test(last) ? '*' : '') + '22.4';
   else if (k === 'E') {
-    if (!/[\d.]/.test(last) || /E/.test(expr.match(/[\d.E+-]*$/)[0].replace(/^[+-]/, ''))) return;
-    expr += 'E';
+    // ×10ⁿ key (or ^ / e on a keyboard): "1.2" ×10ⁿ, "1.2×" ×10ⁿ, "1.2×10" ^ and "10" ^ all mean ×10^
+    if (/E[-+]?\d*$/.test(expr)) return;
+    if (/[\d.]\*10$/.test(expr)) expr = expr.slice(0, -3) + 'E';
+    else if (/[\d.]\*$/.test(expr)) expr = expr.slice(0, -1) + 'E';
+    else if (/(^|[^\d.])10$/.test(expr)) expr = expr.slice(0, -2) + '1E';
+    else if (/[\d.]$/.test(expr)) expr += 'E';
+    else expr += '1E';
   } else if (k === '.') {
     if (inExp) return;
     const cur = expr.match(/[\d.]*$/)[0];
@@ -943,7 +948,7 @@ document.addEventListener('keydown', e => {
   if (tag === 'SELECT' || tag === 'INPUT') return;
   const map = { 'Backspace': 'BS', 'Delete': 'C', 'Escape': 'C', 'x': '*', 'X': '*', '×': '*', '÷': '/', 'e': 'E', 'E': 'E', '^': 'E', 'a': 'NA', 'A': 'NA', 'v': 'VM', 'V': 'VM' };
   if (e.key === 'Enter') {
-    if (tag === 'BUTTON' && e.target !== $('btn-check')) return;
+    if (tag === 'BUTTON' && e.target !== $('btn-check') && !e.target.classList.contains('key')) return;
     e.preventDefault(); check(); return;
   }
   const k = map[e.key] || (/^[\d.+\-*/()]$/.test(e.key) ? e.key : null);

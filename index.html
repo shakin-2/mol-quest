@@ -228,7 +228,7 @@ select {
 .qhead .turn { font-family: var(--f-pixel); }
 .qbody { display: flex; gap: 16px; align-items: flex-start; }
 .tile { flex: none; width: 96px; aspect-ratio: 1; max-width: 100%; border: 2px solid var(--fg); border-radius: 6px; padding: 6px 8px; display: grid; grid-template-rows: auto 1fr auto; text-align: center; }
-.tile .mm { font-family: var(--f-num); font-size: .72rem; text-align: left; color: var(--muted); }
+.tile .mm { font-family: var(--f-num); font-size: .9rem; font-weight: 600; text-align: left; color: var(--accent); line-height: 1.2; }
 .tile .fm { font-family: var(--f-num); font-weight: 600; font-size: 1.25rem; align-self: center; line-height: 1.1; word-break: break-all; }
 .tile .fm.long { font-size: .9rem; }
 .tile .nm { font-size: .68rem; color: var(--muted); line-height: 1.3; }
@@ -239,7 +239,10 @@ select {
 .screen { border: 2px solid var(--line); border-radius: 10px; background: #070920; padding: 10px 12px; display: grid; gap: 2px; min-height: 80px; }
 .screen.dis { opacity: .6; }
 .expr { font-family: var(--f-num); font-size: 1.25rem; text-align: right; overflow-wrap: anywhere; min-height: 1.6em; line-height: 1.5; }
-.expr .caret { display: inline-block; width: 2px; height: 1.1em; background: var(--accent); vertical-align: -0.15em; margin-left: 1px; animation: blink 1s steps(1) infinite; }
+.expr { cursor: text; }
+.expr .paren, .expr .ph, .expr .zero { color: var(--muted); }
+.expr sup .caret { height: .8em; vertical-align: 0; }
+.expr .caret { display: inline-block; width: 2px; height: 1.1em; background: var(--accent); vertical-align: -0.15em; margin: 0 -1px; animation: blink 1s steps(1) infinite; }
 .preview { font-family: var(--f-num); text-align: right; color: var(--muted); font-size: .95rem; font-variant-numeric: tabular-nums; }
 .preview b { color: var(--fg); font-size: 1.1rem; }
 .unitline { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); }
@@ -248,7 +251,7 @@ select {
 .key { font-family: var(--f-num); font-size: 1.1rem; font-weight: 600; cursor: pointer; border: 2px solid var(--line); background: var(--key); color: var(--fg); border-radius: 8px; padding: 8px 0; min-height: 46px; touch-action: manipulation; box-shadow: 0 3px 0 #00000088; }
 .key.op { background: var(--key-op); }
 .key.fn { color: var(--bad); }
-.key.const { font-size: .85rem; grid-column: span 2; color: var(--accent); }
+.key.const { font-size: .8rem; color: var(--accent); white-space: nowrap; }
 .key:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #00000088; }
 .key:disabled { opacity: .4; cursor: default; }
 
@@ -334,6 +337,11 @@ aside { display: grid; gap: 16px; min-width: 0; }
 .zk-kills { color: var(--good); }
 .zk-desc { margin: 0; font-size: .78rem; line-height: 1.6; color: var(--muted); text-align: left; }
 @media (max-width: 600px) { .zk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .zk canvas { width: 64px; height: 64px; } }
+.atb { flex-basis: 100%; height: 5px; border-radius: 3px; background: #000; overflow: hidden; margin-top: 2px; }
+.atb i { display: block; height: 100%; width: 0; background: var(--hp-mid); }
+.atb i.soon { background: var(--bad); animation: blink .5s steps(1) infinite; }
+.status .time { font-variant-numeric: tabular-nums; color: var(--muted); }
+.status .time b { font-weight: 400; color: var(--accent); font-size: 1.1em; }
 #fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
 
 /* ---- phone ---- */
@@ -347,7 +355,7 @@ aside { display: grid; gap: 16px; min-width: 0; }
   .status .meta { margin-left: 0; }
   .card { padding: 14px 12px; gap: 14px; }
   .tile { width: 72px; padding: 4px 5px; border-width: 1.5px; }
-  .tile .mm { font-size: .62rem; }
+  .tile .mm { font-size: .78rem; }
   .tile .fm { font-size: 1rem; }
   .tile .fm.long { font-size: .72rem; }
   .tile .nm { font-size: .6rem; }
@@ -502,6 +510,29 @@ aside { display: grid; gap: 16px; min-width: 0; }
             </ul>
           </div>
           <div class="field-row">
+            <span class="lbl">▶ バトルモード</span>
+            <div class="seg" role="radiogroup" aria-label="バトルモード">
+              <input type="radio" name="mode" id="m-wait" value="wait" checked><label for="m-wait">ウェイト<small>じっくり考える</small></label>
+              <input type="radio" name="mode" id="m-active" value="active"><label for="m-active">アクティブ<small>時間で敵がこうげき</small></label>
+            </div>
+            <ul class="note-list">
+              <li>ウェイト：敵は、こちらがまちがえたときだけ反撃してきます。</li>
+              <li>アクティブ：時間がたつと、敵がこうげきしてきます。強い敵ほど間隔が短く、こうげき力も高くなります。答え合わせのあとの解説を読んでいるあいだは、時間が止まります。</li>
+            </ul>
+          </div>
+          <div class="field-row">
+            <span class="lbl">▶ タイムアタック</span>
+            <div class="seg" role="radiogroup" aria-label="タイムアタック">
+              <input type="radio" name="ta" id="ta-off" value="off" checked><label for="ta-off">OFF</label>
+              <input type="radio" name="ta" id="ta-on" value="on"><label for="ta-on">ON</label>
+            </div>
+            <ul class="note-list">
+              <li>ONにすると、ぼうけんのタイムを計ります（0からカウントアップ）。</li>
+              <li>答え合わせのあとの解説を読んでいるあいだは、タイムが止まります。</li>
+              <li>結果画面にクリアタイムが出ます。同じ設定でのベストタイムも記録されます。</li>
+            </ul>
+          </div>
+          <div class="field-row">
             <span class="lbl">▶ あそびかた</span>
             <ul class="note-list">
               <li>問題に正解すると、モンスターにこうげきします。</li>
@@ -516,7 +547,7 @@ aside { display: grid; gap: 16px; min-width: 0; }
         <div class="btns" style="margin-top:12px"><button class="btn ghost" id="btn-zukan" type="button">モンスターずかん</button></div>
         <p class="last" id="last" hidden></p>
         <div class="reset-area">
-          <button class="btn quiet" id="btn-reset" type="button">レベルとずかんをリセット</button>
+          <button class="btn quiet" id="btn-reset" type="button">レベル・ずかん・ベストタイムをリセット</button>
           <div class="reset-confirm" id="reset-confirm" hidden>
             <p id="reset-text"></p>
             <div class="btns">
@@ -524,7 +555,7 @@ aside { display: grid; gap: 16px; min-width: 0; }
               <button class="btn ghost" id="btn-reset-no" type="button">やめる</button>
             </div>
           </div>
-          <p class="note" id="reset-done" hidden>レベルとずかんをリセットしました。レベル1から ぼうけんを はじめましょう。</p>
+          <p class="note" id="reset-done" hidden>レベル・ずかん・ベストタイムをリセットしました。レベル1から ぼうけんを はじめましょう。</p>
         </div>
       </section>
 
@@ -539,7 +570,7 @@ aside { display: grid; gap: 16px; min-width: 0; }
       <!-- battle -->
       <div id="battle" hidden class="col">
         <section class="field" id="field" aria-label="バトル画面">
-          <div class="ehead"><span class="nm" id="e-name"></span><div class="bar" aria-hidden="true"><i id="e-hp"></i></div><span class="num" id="e-hpt"></span></div>
+          <div class="ehead"><span class="nm" id="e-name"></span><div class="bar" aria-hidden="true"><i id="e-hp"></i></div><span class="num" id="e-hpt"></span><div class="atb" id="e-atbbar" title="てきの こうげきまでの じかん" hidden><i id="e-atb"></i></div></div>
           <div class="stage" id="stage">
             <canvas id="e-sprite" width="32" height="32" aria-hidden="true"></canvas>
             <div class="slash" id="slash"></div>
@@ -550,6 +581,7 @@ aside { display: grid; gap: 16px; min-width: 0; }
           <span class="who">ゆうしゃ<b id="p-lv"></b></span>
           <span class="hp">HP <div class="bar" aria-hidden="true"><i id="p-hp"></i></div><span id="p-hpt"></span></span>
           <span class="exp">EXP <div class="bar ebar" aria-hidden="true"><i id="p-exp"></i></div><span id="p-expt"></span></span>
+          <span class="time" id="p-timebox" hidden>TIME <b id="p-time">0:00.0</b></span>
           <span class="meta"><span>たおした <b id="p-kills">0</b>体</span><span>れんぞく <b id="p-combo">0</b></span></span>
         </section>
         <section class="win msg" id="msg" tabindex="0" aria-live="polite"></section>
@@ -570,8 +602,8 @@ aside { display: grid; gap: 16px; min-width: 0; }
             <div class="keys" id="keys">
               <button class="key fn" data-k="C" type="button" aria-label="すべて消す">C</button>
               <button class="key fn" data-k="BS" type="button" aria-label="1文字消す">⌫</button>
-              <button class="key op" data-k="(" type="button">(</button>
-              <button class="key op" data-k=")" type="button">)</button>
+              <button class="key op" data-k="L" type="button" aria-label="カーソルを左へ" title="キーボード：←">◀<small class="kh">←</small></button>
+              <button class="key op" data-k="R" type="button" aria-label="カーソルを右へ" title="キーボード：→">▶<small class="kh">→</small></button>
               <button class="key" data-k="7" type="button">7</button>
               <button class="key" data-k="8" type="button">8</button>
               <button class="key" data-k="9" type="button">9</button>
@@ -586,8 +618,10 @@ aside { display: grid; gap: 16px; min-width: 0; }
               <button class="key op" data-k="-" type="button" aria-label="引く">−</button>
               <button class="key" data-k="0" type="button">0</button>
               <button class="key" data-k="." type="button">.</button>
-              <button class="key op" data-k="E" type="button" aria-label="×10の累乗" title="キーボード：E">×10<sup>n</sup><small class="kh">E</small></button>
+              <button class="key op" data-k="E" type="button" aria-label="10の累乗" title="キーボード：E">10<sup>n</sup><small class="kh">E</small></button>
               <button class="key op" data-k="+" type="button" aria-label="足す">+</button>
+              <button class="key op" data-k="(" type="button">(</button>
+              <button class="key op" data-k=")" type="button">)</button>
               <button class="key const" data-k="NA" type="button" title="キーボード：A">6.0×10<sup>23</sup><small class="kh">A</small></button>
               <button class="key const" data-k="VM" type="button" title="キーボード：V">22.4<small class="kh">V</small></button>
             </div>
@@ -598,7 +632,7 @@ aside { display: grid; gap: 16px; min-width: 0; }
             <button class="btn ghost" id="btn-skip" type="button">ぼうぎょ<span class="long">（解答を見る）</span></button>
             <button class="btn quiet" id="btn-quit" type="button">にげる<span class="long">（タイトルへ）</span></button>
           </div>
-          <p class="kbd">キーボードでも入力できます（× → *、÷ → /、×10ⁿ → E、6.0×10²³ → A、22.4 → V、Enter で答え合わせ・次へ、Esc で消去）。</p>
+          <p class="kbd">キーボードでも入力できます（× → *、÷ → /、10ⁿ → E、6.0×10²³ → A、22.4 → V、← → でカーソル移動、Enter で答え合わせ・次へ、Esc で消去）。式の中をタップすると、その位置にカーソルが移ります。</p>
         </section>
       </div>
 
@@ -609,7 +643,9 @@ aside { display: grid; gap: 16px; min-width: 0; }
           <div><small>せいかい</small><b id="sum-score"></b></div>
           <div><small>たおした モンスター</small><b id="sum-kills"></b></div>
           <div><small>かくとく EXP</small><b id="sum-exp"></b></div>
+          <div id="sum-timebox" hidden><small>クリアタイム</small><b id="sum-time"></b></div>
         </div>
+        <p class="lvup" id="sum-best" hidden></p>
         <p class="lvup" id="sum-lvup" hidden></p>
         <div class="btns">
           <button class="btn" id="btn-again" type="button">もういちど ぼうけん</button>
@@ -620,6 +656,15 @@ aside { display: grid; gap: 16px; min-width: 0; }
     </div>
 
     <aside>
+      <section class="win panel">
+        <h2>つかう ていすう</h2>
+        <div class="kv">
+          <div><span>アボガドロ定数 N<sub>A</sub></span><b>6.0×10<sup>23</sup> /mol</b></div>
+          <div><span>気体のモル体積（標準状態）</span><b>22.4 L/mol</b></div>
+        </div>
+        <h2>原子量</h2>
+        <div class="consts" id="consts"></div>
+      </section>
       <section class="win panel">
         <h2>まほうの ちず（物質量を中心に考える）</h2>
         <div class="map" id="map">
@@ -632,15 +677,6 @@ aside { display: grid; gap: 16px; min-width: 0; }
           <div class="node" data-k="V" style="grid-area:V"><span>気体の体積</span><b>V</b><small>L（標準状態）</small></div>
         </div>
         <p class="map-note">どの量からも、いったん物質量 n に直してから目的の量へ進みます。ヒントや解答で、使う経路が色付きで表示されます。</p>
-      </section>
-      <section class="win panel">
-        <h2>つかう ていすう</h2>
-        <div class="kv">
-          <div><span>アボガドロ定数 N<sub>A</sub></span><b>6.0×10<sup>23</sup> /mol</b></div>
-          <div><span>気体のモル体積（標準状態）</span><b>22.4 L/mol</b></div>
-        </div>
-        <h2>原子量</h2>
-        <div class="consts" id="consts"></div>
       </section>
     </aside>
   </div>
@@ -868,7 +904,7 @@ function makeProblem(type) {
     ? `求めた物質量に、1 分子あたりの ${el} 原子の数（${k} 個）を掛けてから 6.0×10²³ を掛けます。`
     : { m: '物質量 → 質量は「M を掛ける」。', V: '物質量 → 体積は「22.4 を掛ける」。', N: '物質量 → 粒子数は「6.0×10²³ を掛ける」。', n: '' }[type.to];
 
-  return { type, s, text, ans, steps, hint: [hintFirst, hintNext].filter(Boolean).join(' ') };
+  return { type, s, text, given, k, ans, steps, hint: [hintFirst, hintNext].filter(Boolean).join(' ') };
 }
 
 function routeHtml(t) {
@@ -932,57 +968,101 @@ function evaluate(s) {
   try { if (!s) return null; const v = expr(); return i === s.length && isFinite(v) ? v : null; } catch (e) { return null; }
 }
 
-function exprHtml(s) {
-  // a power of ten right after ÷ is shown in parentheses so the display reads correctly: a ÷ (1.5×10²³)
-  s = s.replace(/\/([\d.]+E[-+]?\d*)/g, '/($1)');
-  return s
-    .replace(/\*/g, '×').replace(/\//g, '÷').replace(/-/g, '−')
-    .replace(/E([−+]?\d*)/g, (_, p) => `×10<sup>${p || '□'}</sup>`);
+// The expression is kept as a plain string (digits . + - * / ( ) and E for ×10^) with a cursor index into it,
+// so digits can be inserted or deleted in the middle, like a scientific calculator.
+let expr = '', cursor = 0;
+
+// Display: one span per character (so a tap can place the cursor), the exponent after E in <sup>,
+// and a power of ten right after ÷ wrapped in display-only parentheses: a ÷ (1.5×10²³)
+function exprView() {
+  const s = expr;
+  const wrapStart = new Set(), wrapEnd = new Set();
+  for (const m of s.matchAll(/\/([\d.]+E[-+]?\d*)/g)) { wrapStart.add(m.index + 1); wrapEnd.add(m.index + 1 + m[1].length); }
+  const CARET = answered ? '' : '<span class="caret"></span>';
+  const OP = { '*': '×', '/': '÷', '-': '−' };
+  let h = '', inSup = false, supN = 0;
+  for (let i = 0; i <= s.length; i++) {
+    const c = s[i];
+    const expChar = inSup && c !== undefined && (/\d/.test(c) || (/[-+]/.test(c) && s[i - 1] === 'E'));
+    let caretDone = false;
+    if (inSup && !expChar) {
+      if (cursor === i) { h += CARET; caretDone = true; }
+      if (!supN) h += '<span class="ph">□</span>';
+      h += '</sup>'; inSup = false;
+    }
+    if (wrapEnd.has(i)) h += '<span class="paren">)</span>';
+    if (cursor === i && !caretDone) h += CARET;
+    if (i === s.length) break;
+    if (wrapStart.has(i)) h += '<span class="paren">(</span>';
+    if (c === 'E') { h += `<span class="ch" data-i="${i}">×10</span><sup>`; inSup = true; supN = 0; }
+    else { if (inSup) supN++; h += `<span class="ch" data-i="${i}">${OP[c] || c}</span>`; }
+  }
+  return h;
 }
 
-let expr = '';
 function press(k) {
   if (answered) return;
-  const last = expr.slice(-1);
-  const inExp = /E[-+]?\d*$/.test(expr);
-  if (k === 'C') expr = '';
-  else if (k === 'BS') expr = expr.slice(0, -1);
-  else if (k === 'NA') expr += (/[\d.)]/.test(last) ? '*' : '') + '6.0E23';  // shown as ÷(6.0×10²³) only after ÷, see exprHtml
-  else if (k === 'VM') expr += (/[\d.)]/.test(last) ? '*' : '') + '22.4';
+  cursor = Math.max(0, Math.min(cursor, expr.length));
+  let before = expr.slice(0, cursor);
+  const after = expr.slice(cursor);
+  const last = before.slice(-1), next = after[0] || '';
+  const inExp = /E[-+]?\d*$/.test(before);
+  let ins = '';
+  if (k === 'C') { expr = ''; cursor = 0; renderCalc(); return; }
+  if (k === 'L') { cursor = Math.max(0, cursor - 1); renderCalc(); return; }
+  if (k === 'R') { cursor = Math.min(expr.length, cursor + 1); renderCalc(); return; }
+  if (k === 'HOME') { cursor = 0; renderCalc(); return; }
+  if (k === 'END') { cursor = expr.length; renderCalc(); return; }
+  if (k === 'BS') { if (cursor > 0) { expr = before.slice(0, -1) + after; cursor--; } renderCalc(); return; }
+  if (k === 'DEL') { expr = before + after.slice(1); renderCalc(); return; }
+  const joinL = /[\d.)]/.test(last) ? '*' : '';
+  const joinR = /^[\d.(]/.test(next) ? '*' : '';
+  if (k === 'NA') ins = joinL + '6.0E23' + joinR;  // shown as ÷(6.0×10²³) only after ÷, see exprView
+  else if (k === 'VM') ins = joinL + '22.4' + joinR;
   else if (k === 'E') {
-    if (!/[\d.]/.test(last) || /E/.test(expr.match(/[\d.E+-]*$/)[0].replace(/^[+-]/, ''))) return;
-    expr += 'E';
+    // 10ⁿ key (or ^ / e on a keyboard). Students write powers of ten in several ways; all of them mean ×10^:
+    //   "1.2" 10ⁿ → 1.2×10^   "1.2×" 10ⁿ → 1.2×10^   "1.2×10" ^ → 1.2×10^   "10" ^ or 10ⁿ alone → 10^
+    if (/E[-+]?\d*$/.test(before)) return;  // already typing an exponent
+    const mantR = after.match(/^[\d.]*/)[0];
+    if (after[mantR.length] === 'E') return;  // this number already has one
+    if (/[\d.]\*10$/.test(before)) { before = before.slice(0, -3); ins = 'E'; }
+    else if (/[\d.]\*$/.test(before)) { before = before.slice(0, -1); ins = 'E'; }
+    else if (/(^|[^\d.])10$/.test(before)) { before = before.slice(0, -2); ins = '1E'; }
+    else if (/[\d.]$/.test(before)) ins = 'E';
+    else ins = '1E';
   } else if (k === '.') {
     if (inExp) return;
-    const cur = expr.match(/[\d.]*$/)[0];
-    if (cur.includes('.')) return;
-    expr += cur ? '.' : '0.';
-  } else if (/\d/.test(k)) expr += k;
-  else if (k === '-' && last === 'E') expr += '-';
+    const left = before.match(/[\d.]*$/)[0], right = after.match(/^[\d.]*/)[0];
+    if ((left + right).includes('.')) return;
+    ins = left ? '.' : '0.';
+  } else if (/\d/.test(k)) ins = k;
+  else if (k === '-' && last === 'E') ins = '-';
   else if ('+-*/'.includes(k)) {
-    if (last === 'E') return;
-    if ('+-*/'.includes(last) && last !== '' ) {
-      // replace operator, but allow "×−" / "÷−" for a negative factor
-      if (k === '-' && (last === '*' || last === '/')) expr += k;
-      else expr = expr.slice(0, -1) + k;
-    } else if (!expr && k !== '-') return;
-    else expr += k;
-  } else if (k === '(') expr += (/[\d.)]/.test(last) ? '*' : '') + '(';
+    if (last === 'E' || last === '(' && k !== '-') return;
+    if (last && '+-*/'.includes(last)) {
+      // replace the operator, but allow "×−" / "÷−" for a negative factor
+      if (!(k === '-' && (last === '*' || last === '/'))) { before = before.slice(0, -1); cursor--; }
+    } else if (!before && k !== '-') return;
+    ins = k;
+  } else if (k === '(') ins = joinL + '(';
   else if (k === ')') {
-    const open = (expr.match(/\(/g) || []).length - (expr.match(/\)/g) || []).length;
-    if (open > 0 && /[\d.)]/.test(last)) expr += ')';
+    const open = (before.match(/\(/g) || []).length - (before.match(/\)/g) || []).length;
+    if (open > 0 && /[\d.)]/.test(last)) ins = ')';
   }
-  if (expr.length > 60) expr = expr.slice(0, 60);
+  if (!ins || before.length + ins.length + after.length > 60) return;
+  expr = before + ins + after;
+  cursor = before.length + ins.length;
   renderCalc();
 }
 
 function renderCalc() {
-  $('expr').innerHTML = (expr ? exprHtml(expr) : '<span style="color:var(--muted)">0</span>') + (answered ? '' : '<span class="caret"></span>');
+  $('expr').innerHTML = expr ? exprView() : (answered ? '' : '<span class="caret"></span>') + '<span class="zero">0</span>';
   const v = evaluate(expr);
   $('preview').innerHTML = !expr ? '式を入力すると計算結果が出ます'
     : v === null ? '式が途中です'
     : `= <b>${fmtAny(v)}</b> ${$('ans-unit').textContent}`;
 }
+
 
 // ---------- state ----------
 const store = {
@@ -1363,6 +1443,7 @@ function drawSprite(canvas, m, silhouette) {
   });
 }
 // order of enemies for one adventure: random picks from the first eight (weakest first), then the last enemy
+const ATOM_RATE = 2 / 15;
 // chance that アボガドラゴン replaces キング・モル as the last enemy (10 enemies: always; 1 enemy: never)
 const DRAGON_CHANCE = { 1: 0, 3: 1 / 20, 5: 1 / 10 };
 function makeLineup(total) {
@@ -1377,8 +1458,10 @@ function makeLineup(total) {
   const last = Math.random() < (DRAGON_CHANCE[total] || 0) ? dragon : king;
   return [...shuffled(king).slice(0, total - 1).sort((a, b) => a - b), last];
 }
+// active mode: seconds between enemy attacks (stronger enemies attack sooner)
+const ATTACK_WAIT = { slime: 45, cavy: 43, flask: 41, pet: 39, ghost: 37, knight: 35, bat: 33, golem: 30, king: 28, dragon: 25 };
 function monsterStats(idx, total) {
-  const m = MONSTERS[idx];
+  const m = { ...MONSTERS[idx], wait: ATTACK_WAIT[MONSTERS[idx].id] };
   if (!m.boss) return { ...m, max: m.hp };
   return { ...m, max: m.hp + 10 * Math.floor((total - 1) / 2), atk: m.atk + Math.floor((total - 1) / 3) * 2 };
 }
@@ -1397,7 +1480,7 @@ function renderZukan() {
       <canvas width="16" height="16" aria-hidden="true"></canvas>
       <div class="zk-no">No.${String(i + 1).padStart(2, '0')}${m.boss ? '　ラスボス' : ''}</div>
       <div class="zk-name">${n ? m.name : '？？？'}</div>
-      ${n ? `<div class="zk-stat">HP ${m.boss ? m.hp + '〜' : m.hp}　こうげき ${m.atk}${m.boss ? '〜' : ''}</div>
+      ${n ? `<div class="zk-stat">HP ${m.boss ? m.hp + '〜' : m.hp}　こうげき ${m.atk}${m.boss ? '〜' : ''}<br>こうげき間隔 ${ATTACK_WAIT[m.id]}びょう（アクティブ）</div>
       <p class="zk-desc">${m.desc}</p><div class="zk-kills">たおした かず：${n}</div>` : '<p class="zk-desc">まだ たおしていない。</p>'}
     </div>`;
   }).join('');
@@ -1456,7 +1539,7 @@ function hpClass(el, ratio) {
 }
 
 // ---------- game state ----------
-let settings = store.get('molq.settings2', { from: 'any', to: 'any', count: 3 });
+let settings = { mode: 'wait', ta: 'off', ...store.get('molq.settings2', { from: 'any', to: 'any', count: 3 }) };
 let set = null;
 let cur = null, answered = false;
 
@@ -1466,7 +1549,9 @@ function show(id) {
   if (id !== 'battle') setMap(null);
 }
 function readSettings() {
-  settings = { from: $('sel-from').value, to: $('sel-to').value, count: +document.querySelector('input[name="count"]:checked').value };
+  settings = { from: $('sel-from').value, to: $('sel-to').value, count: +document.querySelector('input[name="count"]:checked').value,
+    mode: document.querySelector('input[name="mode"]:checked').value,
+    ta: document.querySelector('input[name="ta"]:checked').value };
   store.set('molq.settings2', settings);
 }
 function renderHome() {
@@ -1474,12 +1559,16 @@ function renderHome() {
   $('sel-to').value = settings.to;
   const r = document.querySelector(`input[name="count"][value="${settings.count}"]`);
   if (r) r.checked = true;
+  const ta = document.querySelector(`input[name="ta"][value="${settings.ta}"]`);
+  if (ta) ta.checked = true;
+  const md = document.querySelector(`input[name="mode"][value="${settings.mode}"]`);
+  if (md) md.checked = true;
   updateComboNote();
   renderHero();
   const last = store.get('molq.last', null);
   if (last) {
     $('last').textContent = last.target
-      ? `ぜんかいの ぼうけん：${last.label}・${last.target}体の ぼうけんで ${last.kills}体 たおした（${last.n}問中 ${last.ok}問正解）`
+      ? `ぜんかいの ぼうけん：${last.label}・${last.target}体の ぼうけんで ${last.kills}体 たおした（${last.n}問中 ${last.ok}問正解${last.time != null ? '・タイム ' + fmtTime(last.time) : ''}）`
       : `ぜんかいの ぼうけん：${last.label}・${last.count}問で ${last.ok}問正解、モンスターを ${last.kills}体 たおした`;
     $('last').hidden = false;
   }
@@ -1503,6 +1592,7 @@ function spawn(i) {
   set.enemyIdx = i;
   const m = monsterStats(set.lineup[i], set.target);
   set.enemy = { ...m, hp: m.max };
+  set.gauge = 0;
   drawSprite($('e-sprite'), m);
   $('stage').className = 'stage';
   replay($('stage'), 'appear');
@@ -1551,9 +1641,13 @@ function startSet() {
   const c = combos(settings.from, settings.to);
   if (!c.length) return;
   const level = levelOf(store.get('molq.exp', 0));
-  set = { combos: c, target: settings.count, lineup: makeLineup(settings.count), results: [], level, startLevel: level, php: hpForLevel(level), pmax: hpForLevel(level), streak: 0, kills: 0, exp: 0, over: false };
+  set = { combos: c, target: settings.count, mode: settings.mode, ta: settings.ta === 'on', time: 0, gauge: 0, lineup: makeLineup(settings.count), results: [], level, startLevel: level, php: hpForLevel(level), pmax: hpForLevel(level), streak: 0, kills: 0, exp: 0, over: false };
   cur = null;
   show('battle');
+  window.scrollTo(0, 0);  // the battle always starts at the top of the page
+  $('e-atbbar').hidden = set.mode !== 'active';
+  $('p-timebox').hidden = !set.ta;
+  $('p-time').textContent = fmtTime(0);
   spawn(0);
   renderPlayer();
   next(true);
@@ -1582,10 +1676,12 @@ function next(first) {
   else lines = [pick([`${set.enemy.name}は こちらの ようすを うかがっている。`, `${set.enemy.name}が みがまえている！`, `${set.enemy.name}は ぶきみに わらっている…`])];
   let t, tries = 0;
   do { t = pick(set.combos); tries++; } while (cur && set.combos.length > 1 && t.label === cur.type.label && tries < 4);
+  // about 1 in 7.5 particle-count questions asks for the atoms inside the molecules instead (e.g. H atoms in H2O)
+  if (t.to === 'N' && Math.random() < ATOM_RATE) t = { from: t.from, to: 'A', label: `${QN[t.from]} → ${QN.A}` };
   cur = makeProblem(t);
   cur.hinted = false;
   answered = false;
-  expr = '';
+  expr = ''; cursor = 0;
   $('q-tag').textContent = t.label;
   $('q-no').textContent = `ターン ${set.results.length + 1}・のこり ${set.target - set.kills}体`;
   $('t-mm').textContent = cur.s.M;
@@ -1663,21 +1759,23 @@ function enemyAttack(lines, guarded) {
   if (set.php <= 0) { set.php = 0; set.over = true; lines.push('ゆうしゃは ちからつきた…'); }
 }
 
-function finish(user, skipped) {
+function finish(user, skipped, timedOut = false) {
   answered = true;
   const ok = !skipped && isCorrect(user, cur.ans);
   set.results.push({ ok, text: cur.text, ans: `${fmtQty(cur.type.to, cur.ans)} ${UNIT[cur.type.to]}`,
-    user: skipped || user === null ? '―' : `${fmtAny(user)} ${UNIT[cur.type.to]}` });
+    user: timedOut ? 'じかんぎれ' : skipped || user === null ? '―' : `${fmtAny(user)} ${UNIT[cur.type.to]}` });
 
-  const lines = [];
-  if (ok) heroAttack(lines); else enemyAttack(lines, skipped);
-  renderPlayer();
-  say(lines);
+  if (!timedOut) {
+    const lines = [];
+    if (ok) heroAttack(lines); else enemyAttack(lines, skipped);
+    renderPlayer();
+    say(lines);
+  }
 
   const ansHtml = `${fmtQty(cur.type.to, cur.ans)} ${UNIT[cur.type.to]}`;
   const r = $('result');
   r.className = 'result ' + (ok ? 'ok' : 'ng');
-  const head = ok ? 'せいかい！' : skipped ? 'かいとう' : 'ざんねん…';
+  const head = ok ? 'せいかい！' : timedOut ? 'ちからつきた… この問題の答え' : skipped ? 'かいとう' : 'ざんねん…';
   const yours = (!ok && !skipped) ? `<div>あなたの答え：<span class="ansline">${fmtAny(user)} ${UNIT[cur.type.to]}</span></div>` : '';
   r.innerHTML = `<h3>${head}　<span class="ansline">${ansHtml}</span></h3>${yours}${routeHtml(cur.type)}
     <ol class="steps">${cur.steps.map(s => `<li><span class="f">${s}</span></li>`).join('')}</ol>`;
@@ -1693,6 +1791,50 @@ function finish(user, skipped) {
   renderCalc();
   $('btn-check').focus({ preventScroll: true });
   if (narrow()) $('field').scrollIntoView({ block: 'start', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+}
+
+const fmtTime = sec => {
+  const t = Math.floor(sec * 10) / 10, m = Math.floor(t / 60), r = t - m * 60;
+  return `${m}:${r.toFixed(1).padStart(4, '0')}`;
+};
+
+// ---------- active mode: the enemy attacks whenever its gauge fills ----------
+// The gauge runs only while a question is open (it stops during the explanation and when the page is hidden).
+let atbLast = 0;
+function atbTick(now) {
+  requestAnimationFrame(atbTick);
+  const dt = atbLast ? Math.min(0.25, (now - atbLast) / 1000) : 0;
+  atbLast = now;
+  // time attack: count up while a question is open
+  if (set && set.ta && !$('battle').hidden && !answered && !set.over && !document.hidden) {
+    set.time += dt;
+    $('p-time').textContent = fmtTime(set.time);
+  }
+  if (!set || set.mode !== 'active' || $('battle').hidden || answered || set.over || document.hidden || !set.enemy || set.enemy.hp <= 0) return;
+  set.gauge += dt;
+  if (set.gauge >= set.enemy.wait) { set.gauge = 0; timedAttack(); }
+  const ratio = set.gauge / set.enemy.wait, bar = $('e-atb');
+  bar.style.width = Math.min(100, ratio * 100) + '%';
+  bar.classList.toggle('soon', ratio > 0.8);
+}
+requestAnimationFrame(atbTick);
+
+function timedAttack() {
+  const e = set.enemy;
+  const dmg = e.atk + Math.floor(Math.random() * 7);
+  set.php -= dmg;
+  const lines = [`${e.name}は ${e.verb}！ ゆうしゃは ${dmg} の ダメージを うけた！`];
+  replay($('stage'), 'attack');
+  setTimeout(() => { if (!reduceMotion.matches) { replay($('redflash'), 'go'); replay($('status'), 'hurt'); } }, 220);
+  if (set.php <= 0) {
+    set.php = 0; set.over = true;
+    lines.push('ゆうしゃは ちからつきた…');
+    renderPlayer(); say(lines);
+    finish(null, true, true);
+    return;
+  }
+  lines.push('いそいで こたえよう！');
+  renderPlayer(); say(lines);
 }
 
 function check() {
@@ -1728,7 +1870,23 @@ function showSummary() {
     </li>`).join('');
   const label = set.combos.length === 1 ? set.combos[0].label
     : `${settings.from === 'any' ? 'ランダム' : QN[settings.from]} → ${settings.to === 'any' ? 'ランダム' : QN[settings.to]}`;
-  store.set('molq.last', { label, target: set.target, n, ok, kills: set.kills });
+  // time attack: show the time; a cleared adventure can set the best time for the same settings
+  $('sum-timebox').hidden = !set.ta;
+  $('sum-best').hidden = !set.ta;
+  if (set.ta) {
+    $('sum-time').textContent = fmtTime(set.time);
+    $('sum-timebox').firstElementChild.textContent = set.over ? 'タイム（ぜんめつ）' : 'クリアタイム';
+    const key = `${settings.from}>${settings.to}|${set.target}|${set.mode}`;
+    const best = store.get('molq.best', {});
+    const prev = best[key];
+    if (!set.over && (prev == null || set.time < prev)) {
+      best[key] = set.time; store.set('molq.best', best);
+      $('sum-best').textContent = prev == null ? 'はじめての クリア！ ベストタイムに きろくした。' : `ベストタイム こうしん！（まえの ベスト ${fmtTime(prev)}）`;
+    } else {
+      $('sum-best').textContent = prev == null ? 'クリアすると ベストタイムが きろくされます。' : `この せっていの ベストタイム：${fmtTime(prev)}`;
+    }
+  }
+  store.set('molq.last', { label, target: set.target, n, ok, kills: set.kills, time: set.ta ? set.time : null });
   show('summary');
   $('summary').scrollIntoView({ block: 'start' });
   if (!set.over) { FX.cracker(); FX.fireworks(ok === n ? 6 : 3); }
@@ -1737,7 +1895,7 @@ function showSummary() {
 // ---------- events ----------
 $('sel-from').onchange = updateComboNote;
 $('sel-to').onchange = updateComboNote;
-document.querySelectorAll('input[name="count"]').forEach(r => r.onchange = readSettings);
+document.querySelectorAll('input[name="count"], input[name="mode"], input[name="ta"]').forEach(r => r.onchange = readSettings);
 $('btn-start').onclick = startSet;
 $('btn-again').onclick = startSet;
 $('btn-home').onclick = () => { renderHome(); show('home'); };
@@ -1745,20 +1903,31 @@ $('btn-zukan').onclick = () => { renderZukan(); show('zukan'); $('zukan').scroll
 $('btn-reset').onclick = () => {
   const lv = levelOf(store.get('molq.exp', 0));
   const z = zukanGet(), got = MONSTERS.filter(m => z[m.id]).length;
-  $('reset-text').textContent = `ほんとうに リセットしますか？ いまの レベル（Lv.${lv}）と モンスターずかん（${got} / ${MONSTERS.length}）の きろくが きえて、もとに もどせません。`;
+  const bests = Object.keys(store.get('molq.best', {})).length;
+  $('reset-text').textContent = `ほんとうに リセットしますか？ いまの レベル（Lv.${lv}）、モンスターずかん（${got} / ${MONSTERS.length}）、ベストタイム（${bests}件）の きろくが きえて、もとに もどせません。`;
   $('reset-confirm').hidden = false;
   $('reset-done').hidden = true;
   $('btn-reset-no').focus();
 };
 $('btn-reset-no').onclick = () => { $('reset-confirm').hidden = true; };
 $('btn-reset-yes').onclick = () => {
-  try { localStorage.removeItem('molq.exp'); localStorage.removeItem('molq.zukan'); } catch (e) { }
+  try { ['molq.exp', 'molq.zukan', 'molq.best'].forEach(k => localStorage.removeItem(k)); } catch (e) { }
   $('reset-confirm').hidden = true;
   renderHome();
   $('reset-done').hidden = false;
 };
 $('btn-zk-back').onclick = () => { renderHome(); show('home'); };
 $('btn-quit').onclick = () => { renderHome(); show('home'); };
+// tap or click inside the display to move the cursor there
+$('expr').addEventListener('click', e => {
+  if (answered || !expr) return;
+  const ch = e.target.closest('.ch');
+  if (ch) {
+    const r = ch.getBoundingClientRect();
+    cursor = +ch.dataset.i + (e.clientX > r.left + r.width / 2 ? 1 : 0);
+  } else cursor = expr.length;
+  renderCalc();
+});
 $('keys').addEventListener('click', e => { const b = e.target.closest('.key'); if (b) press(b.dataset.k); });
 $('btn-check').onclick = check;
 $('btn-skip').onclick = () => { if (!answered) finish(null, true); };
@@ -1772,9 +1941,9 @@ document.addEventListener('keydown', e => {
   if ($('battle').hidden || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
   const tag = e.target.tagName;
   if (tag === 'SELECT' || tag === 'INPUT') return;
-  const map = { 'Backspace': 'BS', 'Delete': 'C', 'Escape': 'C', 'x': '*', 'X': '*', '×': '*', '÷': '/', 'e': 'E', 'E': 'E', '^': 'E', 'a': 'NA', 'A': 'NA', 'v': 'VM', 'V': 'VM' };
+  const map = { 'Backspace': 'BS', 'Delete': 'DEL', 'Escape': 'C', 'ArrowLeft': 'L', 'ArrowRight': 'R', 'Home': 'HOME', 'End': 'END', 'x': '*', 'X': '*', '×': '*', '÷': '/', 'e': 'E', 'E': 'E', '^': 'E', 'a': 'NA', 'A': 'NA', 'v': 'VM', 'V': 'VM' };
   if (e.key === 'Enter') {
-    if (tag === 'BUTTON' && e.target !== $('btn-check')) return;
+    if (tag === 'BUTTON' && e.target !== $('btn-check') && !e.target.classList.contains('key')) return;
     e.preventDefault(); check(); return;
   }
   const k = map[e.key] || (/^[\d.+\-*/()]$/.test(e.key) ? e.key : null);
